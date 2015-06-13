@@ -13,7 +13,7 @@ namespace FfmpegEncode
   partial class Arg
   {
     public const string TIMINGS_INDEX = "ti", FIX_SUBS = "fs",
-                        SUBS_INDEX = "si", CRF = "crf",
+                        SUBS_INDEX = "si",
                         OTHER_VIDEO = "ov", OTHER_AUDIO = "oa",
                         QUALITY = "quality", LIMIT = "limit",
                         FILE = "file", SUBS = "subs",
@@ -21,14 +21,13 @@ namespace FfmpegEncode
                         END_TIME = "to", MAP_AUDIO = "ma",
                         SCALE = "scale", GENERATE_TIMING = "gent",
                         OPUS_RATE = "opusRate", NAME_PREFIX = "name",
-                        QMIN = "qmin", QMAX = "qmax",
                         AUDIO_FILE = "af", AUTOLIMIT = "autolimit",
-                        AUTOLIMIT_DELTA = "autolimitDelta", NO_FAST_SKIP = "noFastSkip";
+                        AUTOLIMIT_DELTA = "autolimitDelta";
   }
 
   static class ArgList
   {
-    static Dictionary<string, Arg> ArgsDict = new Dictionary<string, Arg>()
+    static SortedDictionary<string, Arg> ArgsDict = new SortedDictionary<string, Arg>()
       {
         { Arg.FILE, new Arg(Arg.FILE, null, "{string} файл") },
         { Arg.SUBS, new Arg(Arg.SUBS, null, "{string} сабы") },
@@ -39,21 +38,17 @@ namespace FfmpegEncode
         { Arg.SCALE, new Arg(Arg.SCALE, "-1:540", "no|{int:int} скейл изображения (default: -1:540)") },
         { Arg.OTHER_VIDEO, new Arg(Arg.OTHER_VIDEO, string.Empty, "{string} доп. параметры выходного файла видео \"-qmin 30\"") },
         { Arg.OTHER_AUDIO, new Arg(Arg.OTHER_AUDIO, string.Empty, "{string} доп. параметры выходного файла аудио \"-af=volume=3\"") },
-        { Arg.QUALITY, new Arg(Arg.QUALITY, "good", "{best|good} качество видеокодирования") },
+        { Arg.QUALITY, new Arg(Arg.QUALITY, "good", "{best|good} качество") },
         { Arg.LIMIT, new Arg(Arg.LIMIT, "10240", "{int} лимит в KB (default: 10240)") },
-        { Arg.OPUS_RATE, new Arg(Arg.OPUS_RATE, "80", "{int} битрейт аудио (Opus) в Kbps") },
-        { Arg.NAME_PREFIX, new Arg(Arg.NAME_PREFIX, "", "префикс имени результата") },
+        { Arg.OPUS_RATE, new Arg(Arg.OPUS_RATE, "80", "{int} битрейт аудио (Opus) в Kbps (default: 80)") },
+        { Arg.NAME_PREFIX, new Arg(Arg.NAME_PREFIX, string.Empty, "префикс имени результата") },
         { Arg.TIMINGS_INDEX, new Arg(Arg.TIMINGS_INDEX, null, "индекс одного файла для обработки при работе с файлом таймингов") },
         { Arg.FIX_SUBS, new Arg(Arg.FIX_SUBS, null, "замена шрифтов в ass субтитрах на Arial (если ffmpeg не находит шрифт)", false) },
         { Arg.SUBS_INDEX, new Arg(Arg.SUBS_INDEX, null, "индекс субтитров, если в контейнере", ":si={0}") },
-        { Arg.QMIN, new Arg(Arg.QMIN, null, "{int} режим качества, задается вместе с qmax", "-qmin {0}") },
-        { Arg.QMAX, new Arg(Arg.QMAX, null, "{int} режим качества", "-qmax {0}") },
-        { Arg.CRF, new Arg(Arg.CRF, null, "{int} режим качества", "-crf {0}") },
         { Arg.AUDIO_FILE, new Arg(Arg.AUDIO_FILE, null, "{string} внешняя аудиодорожка", "-map 0:{0}") },
         { Arg.GENERATE_TIMING, new Arg(Arg.GENERATE_TIMING, null, "сгенерировать timings.txt из ffprobe", false) },
         { Arg.AUTOLIMIT, new Arg(Arg.AUTOLIMIT, null, "подогнать под лимит", false) },
-        { Arg.AUTOLIMIT_DELTA, new Arg(Arg.AUTOLIMIT_DELTA, "240", "{int} погрешность автоподгона в KB") },
-        { Arg.NO_FAST_SKIP, new Arg(Arg.NO_FAST_SKIP, null, "{yes} не использовать setpts=PTS-STARTPTS для субтитров", false) }
+        { Arg.AUTOLIMIT_DELTA, new Arg(Arg.AUTOLIMIT_DELTA, "240", "{int} погрешность автоподгона в KB") }
       };
 
     public static void Parse(string[] args)
@@ -167,8 +162,7 @@ namespace FfmpegEncode
 
       if (ArgList.Get(Arg.TIMINGS))
       {
-        string timingsPath = GetFullPath(ArgList.Get(Arg.TIMINGS).AsString());
-        string[] lines = File.ReadAllLines(timingsPath);
+        string[] lines = File.ReadAllLines(GetFullPath(ArgList.Get(Arg.TIMINGS).AsString()));
         Action<int, bool> startEncodeTiming = (index, threading) =>
         {
           Console.WriteLine("Start encode timing file {0} line", index);
@@ -189,10 +183,8 @@ namespace FfmpegEncode
             startEncodeTiming(singleIndex, true);
         }
         else
-        {
-          ParallelOptions options = new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount - 1 };
-          Parallel.For(0, lines.Length, options, (i) => { startEncodeTiming(i, false); });
-        }
+          Parallel.For(0, lines.Length, new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount - 1 },
+            (i) => { startEncodeTiming(i, false); });
       }
       else if (ArgList.Get(Arg.START_TIME) && ArgList.Get(Arg.END_TIME))
       {
@@ -276,13 +268,11 @@ namespace FfmpegEncode
       const string vfDefault = "-vf ";
       StringBuilder vf = new StringBuilder(vfDefault);
       string scale = ArgList.Get(Arg.SCALE).AsString();
-      string si = ArgList.Get(Arg.SUBS_INDEX).AsString();
       if (subs != null)
       {
         string format = subs.EndsWith("ass") || subs.EndsWith("ssa") ? "ass=\"{0}\"{1}" : "subtitles=\"{0}\"{1}";
-        format = String.Format(format, subs.Replace("[", "\\[").Replace("]", "\\]").Replace("'", "\\'"), ArgList.Get(Arg.SUBS_INDEX).Command);
-        if (!ArgList.Get(Arg.NO_FAST_SKIP))
-          format = String.Format(new CultureInfo("en"), "setpts=PTS+{0:0.######}/TB,{1},setpts=PTS-STARTPTS", start.TotalSeconds, format);
+        format = String.Format(format, subs.Replace("[", "\\[").Replace("]", "\\]"), ArgList.Get(Arg.SUBS_INDEX).Command);
+        format = String.Format(new CultureInfo("en"), "setpts=PTS+{0:0.######}/TB,{1},setpts=PTS-STARTPTS", start.TotalSeconds, format);
         vf.AppendForPrev(format);
       }
       if (scale != "no")
@@ -295,25 +285,17 @@ namespace FfmpegEncode
       FileInfo info = new FileInfo(oggPath);
       double audioSize = info.Length / 1024d;
       int bitrate = (int)((sizeLimit - audioSize) * 8 * 0.95 / timeLength.TotalSeconds);
-      string bitrateString = ArgList.Get(Arg.QMAX) ? "" : String.Format("-b:v {0}K", bitrate);
+      string bitrateString = String.Format("-b:v {0}K", bitrate);
 
       StringBuilder otherVideo = new StringBuilder();
-      otherVideo.AppendForPrev(ArgList.Get(Arg.QMIN).Command).AppendIfPrev(" ").AppendForPrev(ArgList.Get(Arg.QMAX).Command).AppendIfPrev(" ");
-      otherVideo.AppendForPrev(ArgList.Get(Arg.CRF).Command).AppendIfPrev(" ");
       otherVideo.AppendForPrev(ArgList.Get(Arg.OTHER_VIDEO).AsString()).AppendIfPrev(" ");
 
-      string commandStart;
-      if (ArgList.Get(Arg.NO_FAST_SKIP))
-        commandStart = "-y -i \"{0}\" -ss {3} ";
-      else
-        commandStart = "-y -ss {3} -i \"{0}\" ";
-
       ExecuteFFMPEG(
-        String.Format(commandStart + "-c:v vp9 {1} -tile-columns 6 -frame-parallel 1 -speed 4 -threads 8 -an {2} -t {4} -sn {7} -lag-in-frames 25 -pass 1 -auto-alt-ref 1 -passlogfile temp_{5} \"{6}\"",
+        String.Format("-y -ss {3} -i \"{0}\" -c:v vp9 {1} -tile-columns 6 -frame-parallel 1 -speed 4 -threads 8 -an {2} -t {4} -sn {7} -lag-in-frames 25 -pass 1 -auto-alt-ref 1 -passlogfile temp_{5} \"{6}\"",
                       file, bitrateString, vf, startString, timeLengthString, code, webmPath, otherVideo));
 
       ExecuteFFMPEG(
-        String.Format(commandStart + "-c:v vp9 {1} -tile-columns 6 -frame-parallel 1 -speed 1 -threads 8 -an {2} -t {4} -sn {7} -lag-in-frames 25 -pass 2 -auto-alt-ref 1 -quality {8} -passlogfile temp_{5} \"{6}\"",
+        String.Format("-y -ss {3} -i \"{0}\" -c:v vp9 {1} -tile-columns 6 -frame-parallel 1 -speed 1 -threads 8 -an {2} -t {4} -sn {7} -lag-in-frames 25 -pass 2 -auto-alt-ref 1 -quality {8} -passlogfile temp_{5} \"{6}\"",
                       file, bitrateString, vf, startString, timeLengthString, code, webmPath, otherVideo, quality));
 
       // Concat
