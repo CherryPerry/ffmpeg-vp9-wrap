@@ -82,6 +82,15 @@
     <Reference Include="System.Windows.Forms" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Args\Arg.cs" />
+    <Compile Include="Args\ArgumentParser.cs" />
+    <Compile Include="Args\AudioFileArg.cs" />
+    <Compile Include="Args\OpusArg.cs" />
+    <Compile Include="Args\MapAudioArg.cs" />
+    <Compile Include="Args\EndTimeArg.cs" />
+    <Compile Include="Args\LengthTimeArg.cs" />
+    <Compile Include="Args\TimeArg.cs" />
+    <Compile Include="Args\StartTimeArg.cs" />
     <Compile Include="LagrangeBitrateLookup.cs" />
     <Compile Include="LinearBitrateLookup.cs" />
     <Compile Include="IBitrateLookup.cs" />

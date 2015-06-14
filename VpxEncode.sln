@@ -5,6 +5,11 @@ VisualStudioVersion = 12.0.31101.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VpxEncode", "VpxEncode\VpxEncode.csproj", "{C851C3E7-73E2-4E92-AF70-AEF57CAF6391}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VpxTest", "VpxTest\VpxTest.csproj", "{5B87CE22-944E-4A89-9081-F6118348D8DF}"
+	ProjectSection(ProjectDependencies) = postProject
+		{C851C3E7-73E2-4E92-AF70-AEF57CAF6391} = {C851C3E7-73E2-4E92-AF70-AEF57CAF6391}
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +20,10 @@ Global
 		{C851C3E7-73E2-4E92-AF70-AEF57CAF6391}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C851C3E7-73E2-4E92-AF70-AEF57CAF6391}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C851C3E7-73E2-4E92-AF70-AEF57CAF6391}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5B87CE22-944E-4A89-9081-F6118348D8DF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5B87CE22-944E-4A89-9081-F6118348D8DF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5B87CE22-944E-4A89-9081-F6118348D8DF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5B87CE22-944E-4A89-9081-F6118348D8DF}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

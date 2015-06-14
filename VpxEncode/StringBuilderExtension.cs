@@ -31,5 +31,21 @@ namespace FfmpegEncode
         prev[pair.Key] = p;
       return sb;
     }
+
+    public static bool Contains(this StringBuilder sb, string value)
+    {
+      int valueIndex = 0;
+      for (int i = 0; i < sb.Length; i++)
+      {
+        if (sb[i] == value[valueIndex])
+        {
+          if (++valueIndex >= value.Length)
+            return true;
+        }
+        else
+          valueIndex = 0;
+      }
+      return false;
+    }
   }
 }

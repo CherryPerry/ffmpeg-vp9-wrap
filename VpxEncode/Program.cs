@@ -13,7 +13,8 @@ namespace FfmpegEncode
   partial class Arg
   {
     public const string TIMINGS_INDEX = "ti", FIX_SUBS = "fs",
-                        SUBS_INDEX = "si",
+                        SUBS_INDEX = "si", 
+                        PREVIEW = "preview", PREVIEW_SOURCE = "preview_s",
                         OTHER_VIDEO = "ov", OTHER_AUDIO = "oa",
                         QUALITY = "quality", LIMIT = "limit",
                         FILE = "file", SUBS = "subs",
@@ -48,7 +49,9 @@ namespace FfmpegEncode
         { Arg.AUDIO_FILE, new Arg(Arg.AUDIO_FILE, null, "{string} внешняя аудиодорожка", "-map 0:{0}") },
         { Arg.GENERATE_TIMING, new Arg(Arg.GENERATE_TIMING, null, "сгенерировать timings.txt из ffprobe", false) },
         { Arg.AUTOLIMIT, new Arg(Arg.AUTOLIMIT, null, "подогнать под лимит", false) },
-        { Arg.AUTOLIMIT_DELTA, new Arg(Arg.AUTOLIMIT_DELTA, "240", "{int} погрешность автоподгона в KB") }
+        { Arg.AUTOLIMIT_DELTA, new Arg(Arg.AUTOLIMIT_DELTA, "240", "{int} погрешность автоподгона в KB") },
+        { Arg.PREVIEW, new Arg(Arg.PREVIEW, null, "{00:00.000|00:00:00.000|0} кадр для превью") },
+        { Arg.PREVIEW_SOURCE, new Arg(Arg.PREVIEW_SOURCE, null, "{string} файл для превью, если нет, то берется из -file") }
       };
 
     public static void Parse(string[] args)
@@ -158,6 +161,31 @@ namespace FfmpegEncode
         TimingGenerator tg = new TimingGenerator(filePath);
         tg.Generate(true);
         return;
+      }
+
+      if (filePath.EndsWith(".webm"))
+      {
+        // Generate preview for webm
+        /*
+        1. Создаешь файл concat.txt, в нём пишешь следующее:
+
+        file 'prev.webm'
+        file 'out.webm'
+
+        2.Скринишь нужный кадр из самого видео, либо выбираешь другую пикчу (лучше, чтобы разрешение соответстовало оригинальному, т.е если в оригинале у видео разрешение 640x480, то и изобржаение должно быть таким же. Обрезку или изменение размера можно произвести даже в паинте). Создали превью, затем:
+
+        ffmpeg -i C:\...screenshot.png (файл превью) -c:v vp9(или 8, смотря в каком кодеке у тебя закодированно основное видео) -b:v 0 -crf (коэффицент качества - 4-64, 4 = best) -quality best С:\...prev.webm (выходной файл, готовая превьюшка, пикча в виде webm, название "prev" не случайно, гляди пункт выше)
+
+        3. Скрепляем. У нас по дефолту исходный webm файл должен зваться "out", внимательнее! 
+
+        ffmpeg -f concat -i C:\...concat.txt -c copy C:\...video.webm (это выходной файл, если что)
+
+        Видео готово.
+
+        4. Нам нужно "вернуть" звук.
+
+        ffmpeg -i C:\...out.webm -itsoffset 00:00:00.04 -i C:\...video.webm -map 0:1 -map 1:0 -c copy C:\...video+sound.webm  
+        */
       }
 
       if (ArgList.Get(Arg.TIMINGS))
