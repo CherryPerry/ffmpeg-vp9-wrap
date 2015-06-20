@@ -9,18 +9,22 @@ namespace VpxTest
   public class ArgumentParserTest
   {
     [TestMethod]
-    public void Parse()
+    public void GroupTest()
     {
       ArgumentParser parser = new ArgumentParser();
       parser.Parse(new string[] { 
-      "-ma", "1",
       "-ss", "10",
       "-to", "20",
-      "-or", "128",
-      "-af", "file.ogg"
+      "-subs", "subs.ass",
+      "-scale", "-1:540",
+      "-file", "1.mkv"
+      },
+      new Arg[] {
+        new InternalStateArg()
       });
-      StringBuilder sb = new StringBuilder();
+      StringBuilder sb = new StringBuilder(), sb2 = new StringBuilder();
       parser.Apply(sb, Arg.ApplyTo.Audio);
+      parser.Apply(sb2, Arg.ApplyTo.Video);
 
       int brkpnt = 0;
     }

@@ -1,5 +1,4 @@
-﻿using FfmpegEncode;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
@@ -8,8 +7,10 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using Vp9Encode;
+using Vp9Encode.Actions;
+using Vp9Encode.Args;
 
-namespace VpxEncode
+namespace FfmpegEncode
 {
   partial class Arg
   {
@@ -53,7 +54,8 @@ namespace VpxEncode
         { Arg.AUTOLIMIT, new Arg(Arg.AUTOLIMIT, null, "подогнать под лимит", false) },
         { Arg.AUTOLIMIT_DELTA, new Arg(Arg.AUTOLIMIT_DELTA, "240", "{int} погрешность автоподгона в KB") },
         { Arg.PREVIEW, new Arg(Arg.PREVIEW, null, "{00:00.000|00:00:00.000|0} кадр для превью") },
-        { Arg.PREVIEW_SOURCE, new Arg(Arg.PREVIEW_SOURCE, null, "{string} файл для превью, если нет, то берется из -file") }
+        { Arg.PREVIEW_SOURCE, new Arg(Arg.PREVIEW_SOURCE, null, "{string} файл для превью, если нет, то берется из -file") },
+        { Arg.NEW_ENCODE_SINGLE, new Arg(Arg.NEW_ENCODE_SINGLE, null, "NEW_ENCODE_SINGLE", false) },
       };
 
     public static void Parse(string[] args)
@@ -190,6 +192,12 @@ namespace VpxEncode
         */
       }
 
+      if (ArgList.Get(Arg.NEW_ENCODE_SINGLE))
+      {
+        EncodeSingle(args);
+        return;
+      }
+
       if (ArgList.Get(Arg.TIMINGS))
       {
         string[] lines = File.ReadAllLines(GetFullPath(ArgList.Get(Arg.TIMINGS).AsString()));
@@ -246,6 +254,11 @@ namespace VpxEncode
         size = (int)(fileInfo.Length / 1024d);
         bl.AddPoint(newTarget, size);
       }
+    }
+
+    static void EncodeSingle(string[] args)
+    {
+      Actions.SelectAction(args);
     }
 
     static string Encode(long i, string file, string subs, TimeSpan start, TimeSpan end, int sizeLimit, bool threading)

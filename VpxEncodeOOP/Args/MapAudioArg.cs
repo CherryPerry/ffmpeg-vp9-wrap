@@ -1,9 +1,9 @@
-﻿using FfmpegEncode;
-using System;
-using System.Text;
+﻿using System.Text;
+using Vp9Encode.Args.Attributes;
 
 namespace Vp9Encode.Args
 {
+  [InputSequence("-ma")]
   internal class MapAudioArg : Arg
   {
     public override int Priority { get { return PRIORITY_MEDUIM; } }
@@ -11,16 +11,13 @@ namespace Vp9Encode.Args
     public MapAudioArg(string value)
       : base(value)
     {
-      int result;
-      ValidState = int.TryParse(Value, out result);
-      Check = "-map 0:";
-      Format = Check + "{0}";
+      byte.Parse(Value);
     }
 
     public override StringBuilder ApplyArg(StringBuilder args, ApplyTo to)
     {
-      if (to == ApplyTo.Audio && CheckArgs(args))
-        return args.Append(' ').AppendFormat(Format, Value).Append(' ');
+      if (to == ApplyTo.Audio)
+        return args.AppendFormat(" -map 0:{0} ", Value);
       return args;
     }
   }

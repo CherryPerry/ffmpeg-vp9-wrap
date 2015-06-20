@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Text;
+using Vp9Encode.Args.Attributes;
 
 namespace Vp9Encode.Args
 {
+  [InputSequence("-af")]
   internal class AudioFileArg : Arg
   {
     public override int Priority { get { return PRIORITY_HIGH + 1; } }
@@ -10,15 +12,14 @@ namespace Vp9Encode.Args
     public AudioFileArg(string value)
       : base(value)
     {
-      ValidState = !String.IsNullOrWhiteSpace(value);
-      Check = "-i ";
-      Format = Check + "{0}";
+      if (String.IsNullOrWhiteSpace(value))
+        throw new ArgumentException();
     }
 
     public override StringBuilder ApplyArg(StringBuilder args, ApplyTo to)
     {
-      if (to == ApplyTo.Audio && CheckArgs(args))
-        return args.Append(' ').AppendFormat(Format, Value).Append(' ');
+      if (to == ApplyTo.Audio)
+        return args.AppendFormat(" -i \"{0}\" ", Value);
       return args;
     }
   }

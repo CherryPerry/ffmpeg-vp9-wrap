@@ -1,7 +1,9 @@
 ﻿using System.Text;
+using Vp9Encode.Args.Attributes;
 
 namespace Vp9Encode.Args
 {
+  [InputSequence("-or")]
   internal class OpusArg : Arg
   {
     public override int Priority { get { return PRIORITY_MEDUIM; } }
@@ -9,16 +11,13 @@ namespace Vp9Encode.Args
     public OpusArg(string value)
       : base(value)
     {
-      int result;
-      ValidState = int.TryParse(Value, out result);
-      Check = "-c:a opus -b:a ";
-      Format = Check + "{0}K";
+      ushort.Parse(Value);
     }
 
     public override StringBuilder ApplyArg(StringBuilder args, ApplyTo to)
     {
-      if (to == ApplyTo.Audio && CheckArgs(args))
-        return args.Append(' ').AppendFormat(Format, Value).Append(' ');
+      if (to == ApplyTo.Audio)
+        return args.AppendFormat(" -c:a opus -b:a {0}K ", Value);
       return args;
     }
   }

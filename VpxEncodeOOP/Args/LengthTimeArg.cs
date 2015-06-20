@@ -5,10 +5,6 @@
     public override int TimeArgPriority { get { return PRIORITY_MEDUIM; } }
 
     public LengthTimeArg(string value)
-      : base(value) 
-    {
-      Check = "-t ";
-      Format = Check + "{0}";
-    }
+      : base(value) { Format = "-t {0}"; }
   }
 }

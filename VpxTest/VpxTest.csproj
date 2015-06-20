@@ -54,9 +54,9 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\VpxEncode\VpxEncode.csproj">
+    <ProjectReference Include="..\VpxEncodeOOP\VpxEncodeOOP.csproj">
       <Project>{c851c3e7-73e2-4e92-af70-aef57caf6391}</Project>
-      <Name>VpxEncode</Name>
+      <Name>VpxEncodeOOP</Name>
     </ProjectReference>
   </ItemGroup>
   <Choose>

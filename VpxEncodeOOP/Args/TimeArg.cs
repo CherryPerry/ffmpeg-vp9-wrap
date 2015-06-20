@@ -12,15 +12,12 @@ namespace Vp9Encode.Args
     public override int Priority { get { return TimeArgPriority; } }
     public TimeSpan Time { get; set; }
 
+    protected string Format;
+
     public TimeArg(string value)
-      : base(value) 
+      : base(value)
     {
-      try
-      {
-        Time = ParseToTimespan(Value);
-        ValidState = true;
-      }
-      catch { ValidState = false; }
+      Time = ParseToTimespan(Value);
     }
 
     internal static TimeSpan ParseToTimespan(string str)
@@ -35,9 +32,7 @@ namespace Vp9Encode.Args
 
     public override StringBuilder ApplyArg(StringBuilder args, Arg.ApplyTo to)
     {
-      if (CheckArgs(args))
-        return args.Append(' ').AppendFormat(Format, Value).Append(' ');
-      return args;
+      return args.Append(' ').AppendFormat(Format, Value).Append(' ');
     }
 
     public string TimeToString() { return Time.ToString(TIME_FORMAT); }
