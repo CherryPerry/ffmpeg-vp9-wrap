@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Vp9Encode
+namespace VpxEncode.Math
 {
   /// <summary>
   /// IBitrateLookup with Lagrange method

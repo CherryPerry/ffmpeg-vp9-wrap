@@ -1,7 +1,8 @@
 ﻿using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 
-namespace Vp9Encode
+namespace VpxEncode.Math
 {
   /// <summary>
   /// IBitrateLookup with line method
@@ -54,6 +55,9 @@ namespace Vp9Encode
 
     public void AddPoint(int target, int current)
     {
+#if DEBUG
+      Debug.WriteLine("{0}\t{1}", target, current);
+#endif
       Targets.Add(new Point { Current = current, Target = target });
     }
   }

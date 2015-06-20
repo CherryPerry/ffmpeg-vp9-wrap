@@ -1,5 +1,4 @@
-﻿using FfmpegEncode;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
@@ -7,7 +6,7 @@ using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using Vp9Encode;
+using VpxEncode.Math;
 
 namespace VpxEncode
 {
@@ -24,8 +23,7 @@ namespace VpxEncode
                         SCALE = "scale", GENERATE_TIMING = "gent",
                         OPUS_RATE = "opusRate", NAME_PREFIX = "name",
                         AUDIO_FILE = "af", AUTOLIMIT = "autolimit",
-                        AUTOLIMIT_DELTA = "autolimitDelta",
-                        NEW_ENCODE_SINGLE = "new";
+                        AUTOLIMIT_DELTA = "autolimitDelta";
   }
 
   static class ArgList
@@ -51,7 +49,7 @@ namespace VpxEncode
         { Arg.AUDIO_FILE, new Arg(Arg.AUDIO_FILE, null, "{string} внешняя аудиодорожка", "-map 0:{0}") },
         { Arg.GENERATE_TIMING, new Arg(Arg.GENERATE_TIMING, null, "сгенерировать timings.txt из ffprobe", false) },
         { Arg.AUTOLIMIT, new Arg(Arg.AUTOLIMIT, null, "подогнать под лимит", false) },
-        { Arg.AUTOLIMIT_DELTA, new Arg(Arg.AUTOLIMIT_DELTA, "240", "{int} погрешность автоподгона в KB") },
+        { Arg.AUTOLIMIT_DELTA, new Arg(Arg.AUTOLIMIT_DELTA, "240", "{int} погрешность автоподгона в KB (default: 240)") },
         { Arg.PREVIEW, new Arg(Arg.PREVIEW, null, "{00:00.000|00:00:00.000|0} кадр для превью") },
         { Arg.PREVIEW_SOURCE, new Arg(Arg.PREVIEW_SOURCE, null, "{string} файл для превью, если нет, то берется из -file") }
       };
@@ -213,7 +211,7 @@ namespace VpxEncode
             startEncodeTiming(singleIndex, true);
         }
         else
-          Parallel.For(0, lines.Length, new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount - 1 },
+          Parallel.For(0, lines.Length, new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount },
             (i) => { startEncodeTiming(i, false); });
       }
       else if (ArgList.Get(Arg.START_TIME) && ArgList.Get(Arg.END_TIME))
@@ -232,18 +230,15 @@ namespace VpxEncode
 
     static void BitrateLookupEncode(Func<int, string> encodeFunc)
     {
-      throw new NotImplementedException();
-
       int limit = ArgList.Get(Arg.LIMIT).AsInt();
       int delta = ArgList.Get(Arg.AUTOLIMIT_DELTA).AsInt();
-      IBitrateLookup bl = new LinearBitrateLookup(limit);
+      IBitrateLookup bl = new LinearBitrateLookup(limit - delta / 2);
       int size = 0;
       while (!(limit - size < delta && size < limit))
       {
         int newTarget = bl.GetTarget();
         string result = encodeFunc(newTarget);
-        FileInfo fileInfo = new FileInfo(result);
-        size = (int)(fileInfo.Length / 1024d);
+        size = (int)(new FileInfo(result).Length / 1024d);
         bl.AddPoint(newTarget, size);
       }
     }

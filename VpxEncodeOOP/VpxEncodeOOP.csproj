@@ -114,17 +114,10 @@
     <Compile Include="Groups\TimingGroup.cs" />
     <Compile Include="Args\VideoFilterArg.cs" />
     <Compile Include="Groups\VideoFilterGroup.cs" />
-    <Compile Include="LagrangeBitrateLookup.cs" />
-    <Compile Include="LinearBitrateLookup.cs" />
-    <Compile Include="IBitrateLookup.cs" />
-    <Compile Include="IFuncSolver.cs" />
-    <Compile Include="Point.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Reflections.cs" />
     <Compile Include="StringBuilderExtension.cs" />
-    <Compile Include="SubStationAlpha.cs" />
-    <Compile Include="TimingGenerator.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />

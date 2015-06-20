@@ -3,7 +3,7 @@ using System.Linq;
 using System.Collections.Generic;
 using System.Text;
 
-namespace FfmpegEncode
+namespace VpxEncode
 {
   static class StringBuilderExtension
   {
@@ -54,6 +54,7 @@ namespace FfmpegEncode
     public static void TrimSpaces(this StringBuilder sb)
     {
       sb.Replace("  ", " ");
+      sb.Replace("   ", " ");
     }
   }
 }

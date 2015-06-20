@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Vp9Encode
+namespace VpxEncode.Math
 {
   struct Point
   {

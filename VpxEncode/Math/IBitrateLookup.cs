@@ -1,4 +1,4 @@
-﻿namespace Vp9Encode
+﻿namespace VpxEncode.Math
 {
   /// <summary>
   /// Interface for caclulating target bitrate to fit the limit

@@ -54,6 +54,7 @@ namespace FfmpegEncode
     public static void TrimSpaces(this StringBuilder sb)
     {
       sb.Replace("  ", " ");
+      sb.Replace("   ", " ");
     }
   }
 }

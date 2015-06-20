@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace FfmpegEncode
+namespace VpxEncode
 {
   /// <summary>
   /// Generates timings from meta by parsing ffprobe result with regexp

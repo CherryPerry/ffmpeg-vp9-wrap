@@ -2,7 +2,7 @@
 using System.IO;
 using System.Text;
 
-namespace FfmpegEncode
+namespace VpxEncode
 {
   /// <summary>
   /// Class for replacing fonts in .ass to Arial
