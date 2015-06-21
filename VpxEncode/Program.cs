@@ -238,6 +238,8 @@ namespace VpxEncode
       while (!(limit - size < delta && size < limit))
       {
         int newTarget = bl.GetTarget();
+        if (newTarget == -1)
+          break;
         string result = encodeFunc(newTarget);
         size = (int)(new FileInfo(result).Length / 1024d);
         bl.AddPoint(newTarget, size);

@@ -14,7 +14,7 @@ namespace VpxEncode.Math
 
     public override int GetHashCode()
     {
-      return Target;
+      return Target ^ Current;
     }
   }
 }

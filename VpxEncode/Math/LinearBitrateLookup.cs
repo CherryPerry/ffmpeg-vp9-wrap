@@ -9,18 +9,22 @@ namespace VpxEncode.Math
   /// </summary>
   sealed class LinearBitrateLookup : IBitrateLookup
   {
-    private int TargetLimit { get; set; }
-    private HashSet<Point> Targets { get; set; }
+    private int TargetLimit;
+    private HashSet<Point> Targets = new HashSet<Point>();
+
+    private bool methodInvalid = false;
+    private HashSet<int> History = new HashSet<int>();
 
     public LinearBitrateLookup(int targetLimit)
     {
       TargetLimit = targetLimit;
-      Targets = new HashSet<Point>();
     }
 
     public int GetTarget()
     {
-      return LinearGetTarget();
+      if (methodInvalid)
+        return -1;
+      return LinearGetTarget(); ;
     }
 
     private int LinearGetTarget()
@@ -58,7 +62,7 @@ namespace VpxEncode.Math
 #if DEBUG
       Debug.WriteLine("{0}\t{1}", target, current);
 #endif
-      Targets.Add(new Point { Current = current, Target = target });
+      methodInvalid = !(History.Add(current) && Targets.Add(new Point { Current = current, Target = target }));
     }
   }
 }
