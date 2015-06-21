@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using VpxEncode.Math;
@@ -31,7 +32,7 @@ namespace VpxEncode
     static SortedDictionary<string, Arg> ArgsDict = new SortedDictionary<string, Arg>()
       {
         { Arg.FILE, new Arg(Arg.FILE, null, "{string} файл") },
-        { Arg.SUBS, new Arg(Arg.SUBS, null, "{string} сабы") },
+        { Arg.SUBS, new Arg(Arg.SUBS, null, "{string} сабы (file, *.ass, *") },
         { Arg.TIMINGS, new Arg(Arg.TIMINGS, null, "{string} файл таймингов ({00:00.000|00:00:00.000|0} {00:00.000|00:00:00.000|0}\\n)") },
         { Arg.START_TIME, new Arg(Arg.START_TIME, "0", "{00:00.000|00:00:00.000|0} начало отрезка") },
         { Arg.END_TIME, new Arg(Arg.END_TIME, null, "{00:00.000|00:00:00.000|0} конец отрезка") },
@@ -245,6 +246,17 @@ namespace VpxEncode
 
     static string Encode(long i, string file, string subs, TimeSpan start, TimeSpan end, int sizeLimit)
     {
+      // subs = *.ass
+      if (new Regex(@"\*\..+").IsMatch(subs))
+      {
+        string fileNoPath = file.Substring(0, file.LastIndexOf('.'));
+        subs = fileNoPath + subs.Substring(subs.LastIndexOf('.'));
+      }
+
+      // subs = *
+      if (subs == "*")
+        subs = file;
+
       bool subsWereCopied = false;
       string subsFilename = Path.GetFileName(subs);
       if (ArgList.Get(Arg.FIX_SUBS) || GetFolder(subs) != Environment.CurrentDirectory)
