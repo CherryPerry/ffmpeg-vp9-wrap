@@ -191,7 +191,7 @@ namespace VpxEncode
       if (ArgList.Get(Arg.TIMINGS))
       {
         string[] lines = File.ReadAllLines(GetFullPath(ArgList.Get(Arg.TIMINGS).AsString()));
-        Action<int, bool> startEncodeTiming = (index, threading) =>
+        Action<int> startEncodeTiming = (index) =>
         {
           Console.WriteLine("Start encode timing file {0} line", index);
           string[] splitted = lines[index].Split(' ');
@@ -199,30 +199,30 @@ namespace VpxEncode
             if (ArgList.Get(Arg.AUTOLIMIT))
               BitrateLookupEncode((newTarget) =>
               {
-                return Encode(index, filePath, subPath, ParseToTimespan(splitted[0]), ParseToTimespan(splitted[1]), newTarget, threading);
+                return Encode(index, filePath, subPath, ParseToTimespan(splitted[0]), ParseToTimespan(splitted[1]), newTarget);
               });
             else
-              Encode(index, filePath, subPath, ParseToTimespan(splitted[0]), ParseToTimespan(splitted[1]), ArgList.Get(Arg.LIMIT).AsInt(), threading);
+              Encode(index, filePath, subPath, ParseToTimespan(splitted[0]), ParseToTimespan(splitted[1]), ArgList.Get(Arg.LIMIT).AsInt());
         };
         if (ArgList.Get(Arg.TIMINGS_INDEX))
         {
           int singleIndex = ArgList.Get(Arg.TIMINGS_INDEX).AsInt();
           if (lines.Length > singleIndex && singleIndex >= 0)
-            startEncodeTiming(singleIndex, true);
+            startEncodeTiming(singleIndex);
         }
         else
-          Parallel.For(0, lines.Length, new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount },
-            (i) => { startEncodeTiming(i, false); });
+          Parallel.For(0, lines.Length, new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount / 2 },
+            (i) => { startEncodeTiming(i); });
       }
       else if (ArgList.Get(Arg.START_TIME) && ArgList.Get(Arg.END_TIME))
       {
         if (ArgList.Get(Arg.AUTOLIMIT))
           BitrateLookupEncode((newTarget) =>
           {
-            return Encode(DateTime.Now.ToFileTimeUtc(), filePath, subPath, ArgList.Get(Arg.START_TIME).AsTimeSpan(), ArgList.Get(Arg.END_TIME).AsTimeSpan(), newTarget, true);
+            return Encode(DateTime.Now.ToFileTimeUtc(), filePath, subPath, ArgList.Get(Arg.START_TIME).AsTimeSpan(), ArgList.Get(Arg.END_TIME).AsTimeSpan(), newTarget);
           });
         else
-          Encode(DateTime.Now.ToFileTimeUtc(), filePath, subPath, ArgList.Get(Arg.START_TIME).AsTimeSpan(), ArgList.Get(Arg.END_TIME).AsTimeSpan(), ArgList.Get(Arg.LIMIT).AsInt(), true);
+          Encode(DateTime.Now.ToFileTimeUtc(), filePath, subPath, ArgList.Get(Arg.START_TIME).AsTimeSpan(), ArgList.Get(Arg.END_TIME).AsTimeSpan(), ArgList.Get(Arg.LIMIT).AsInt());
       }
 
       MessageBox.Show("OK");
@@ -243,7 +243,7 @@ namespace VpxEncode
       }
     }
 
-    static string Encode(long i, string file, string subs, TimeSpan start, TimeSpan end, int sizeLimit, bool threading)
+    static string Encode(long i, string file, string subs, TimeSpan start, TimeSpan end, int sizeLimit)
     {
       bool subsWereCopied = false;
       string subsFilename = Path.GetFileName(subs);
