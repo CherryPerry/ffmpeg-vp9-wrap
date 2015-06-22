@@ -84,7 +84,7 @@
   <ItemGroup>
     <Compile Include="Actions\Action.cs" />
     <Compile Include="Actions\Actions.cs" />
-    <Compile Include="Actions\TimingsAction.cs" />
+    <Compile Include="Actions\TimingsFileAction.cs" />
     <Compile Include="Actions\Vp9SingleFileAction.cs" />
     <Compile Include="Args\Arg.cs" />
     <Compile Include="Args\CodecBitrateArg.cs" />
@@ -92,6 +92,8 @@
     <Compile Include="Args\InternalStateArg.cs" />
     <Compile Include="Args\LimitArg.cs" />
     <Compile Include="Args\ReplaceArg.cs" />
+    <Compile Include="Args\TimingFileArg.cs" />
+    <Compile Include="Args\TimingIndexArg.cs" />
     <Compile Include="Groups\ArgGroup.cs" />
     <Compile Include="Args\ArgumentParser.cs" />
     <Compile Include="Args\AudioFileArg.cs" />
