@@ -23,8 +23,8 @@ namespace VpxEncode
                         END_TIME = "to", MAP_AUDIO = "ma",
                         SCALE = "scale", GENERATE_TIMING = "gent",
                         OPUS_RATE = "opusRate", NAME_PREFIX = "name",
-                        AUDIO_FILE = "af", AUTOLIMIT = "autolimit",
-                        AUTOLIMIT_DELTA = "autolimitDelta";
+                        AUDIO_FILE = "af", AUTOLIMIT = "alimit",
+                        AUTOLIMIT_DELTA = "alimitD", AUTOLIMIT_HISTORY = "alimitS";
   }
 
   static class ArgList
@@ -51,6 +51,7 @@ namespace VpxEncode
         { Arg.GENERATE_TIMING, new Arg(Arg.GENERATE_TIMING, null, "сгенерировать timings.txt из ffprobe", false) },
         { Arg.AUTOLIMIT, new Arg(Arg.AUTOLIMIT, null, "подогнать под лимит", false) },
         { Arg.AUTOLIMIT_DELTA, new Arg(Arg.AUTOLIMIT_DELTA, "240", "{int} погрешность автоподгона в KB (default: 240)") },
+        { Arg.AUTOLIMIT_HISTORY, new Arg(Arg.AUTOLIMIT_HISTORY, null, "{int:int} добавить историю попыток KB '10240:6567,13000:7800'") },
         { Arg.PREVIEW, new Arg(Arg.PREVIEW, null, "{00:00.000|00:00:00.000|0} кадр для превью") },
         { Arg.PREVIEW_SOURCE, new Arg(Arg.PREVIEW_SOURCE, null, "{string} файл для превью, если нет, то берется из -file") }
       };
@@ -234,6 +235,22 @@ namespace VpxEncode
       int limit = ArgList.Get(Arg.LIMIT).AsInt();
       int delta = ArgList.Get(Arg.AUTOLIMIT_DELTA).AsInt();
       IBitrateLookup bl = new LinearBitrateLookup(limit - delta / 2);
+
+      string history = ArgList.Get(Arg.AUTOLIMIT_HISTORY).AsString();
+      if (!String.IsNullOrWhiteSpace(history))
+      {
+        string[] historySplit = history.Split(',');
+        foreach (string split in historySplit)
+        {
+          string[] values = split.Split(':');
+          if (values.Length == 2)
+          {
+            try { bl.AddPoint(int.Parse(values[0]), int.Parse(values[1])); }
+            finally { }
+          }
+        }
+      }
+
       int size = 0;
       while (!(limit - size < delta && size < limit))
       {
