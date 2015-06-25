@@ -165,29 +165,10 @@ namespace VpxEncode
         return;
       }
 
-      if (filePath.EndsWith(".webm"))
+      if (filePath.EndsWith(".webm") && ArgList.Get(Arg.PREVIEW))
       {
-        // Generate preview for webm
-        /*
-        1. Создаешь файл concat.txt, в нём пишешь следующее:
-
-        file 'prev.webm'
-        file 'out.webm'
-
-        2.Скринишь нужный кадр из самого видео, либо выбираешь другую пикчу (лучше, чтобы разрешение соответстовало оригинальному, т.е если в оригинале у видео разрешение 640x480, то и изобржаение должно быть таким же. Обрезку или изменение размера можно произвести даже в паинте). Создали превью, затем:
-
-        ffmpeg -i C:\...screenshot.png (файл превью) -c:v vp9(или 8, смотря в каком кодеке у тебя закодированно основное видео) -b:v 0 -crf (коэффицент качества - 4-64, 4 = best) -quality best С:\...prev.webm (выходной файл, готовая превьюшка, пикча в виде webm, название "prev" не случайно, гляди пункт выше)
-
-        3. Скрепляем. У нас по дефолту исходный webm файл должен зваться "out", внимательнее! 
-
-        ffmpeg -f concat -i C:\...concat.txt -c copy C:\...video.webm (это выходной файл, если что)
-
-        Видео готово.
-
-        4. Нам нужно "вернуть" звук.
-
-        ffmpeg -i C:\...out.webm -itsoffset 00:00:00.04 -i C:\...video.webm -map 0:1 -map 1:0 -c copy C:\...video+sound.webm  
-        */
+        GeneratePreview(filePath);
+        return;
       }
 
       if (ArgList.Get(Arg.TIMINGS))
@@ -266,7 +247,7 @@ namespace VpxEncode
     static string Encode(long i, string file, string subs, TimeSpan start, TimeSpan end, int sizeLimit)
     {
       // subs = *.ass
-      if (new Regex(@"\*\..+").IsMatch(subs))
+      if (subs != null && new Regex(@"\*\..+").IsMatch(subs))
       {
         string fileNoPath = file.Substring(0, file.LastIndexOf('.'));
         subs = fileNoPath + subs.Substring(subs.LastIndexOf('.'));
@@ -365,6 +346,17 @@ namespace VpxEncode
       File.Delete(Path.Combine(filePath, String.Format("temp_{0}-0.log", code)));
 
       return finalPath;
+    }
+
+    static void GeneratePreview(string filePath)
+    {
+      string preview_source = ArgList.Get(Arg.PREVIEW_SOURCE).AsString();
+      string preview_timing = ArgList.Get(Arg.PREVIEW).AsString();
+
+      // preview.webm
+      string preview_webm = GetFolder(filePath) + "\\preview_" + DateTime.Now.ToFileTimeUtc().ToString() + ".webm";
+      string args = String.Format("-i {0} -c:v vp9 -b:v 0 -crf 4 -ss {1} -t 00:00:00.04 -quality best", preview_source, preview_timing, preview_webm);
+      ExecuteFFMPEG(args);
     }
 
     static void ExecuteFFMPEG(string args)
