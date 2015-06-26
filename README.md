@@ -14,7 +14,6 @@
 vp9 -file "1.mkv" -ss 01:00.000 -to 01:30.000
 ```
 2 pass, quality good, opus 80K, 960x540.
-Указывать -ss и -to всегда, определение длинны исходника не реализовано.
 
 Для списка команд (вызов без аргументов):
 ```
@@ -57,6 +56,18 @@ vp9 -file webm_куда_добавить_превью.webm -preview_s исход
 vp9 -file webm_куда_добавить_превью.webm -preview 00:30.255
 ```
 
+#####-youtube
+Для скачивания видео перед кодированием:
+```
+vp9 -youtube https://youtube...
+```
+
+####Сторонние библиотеки
+- [YoutubeExtractor] MIT License
+- [Json.NET] MIT license
+
 [СКАЧАТЬ БЕСПЛАТНО БЕЗ СМС]:https://github.com/CherryPerry/ffmpeg-vp9-wrap/releases
 [установщиком]:https://github.com/CherryPerry/zeranoe-ffmpeg-update-csharp
 [гайдом]:https://github.com/pituz/webm-thread/wiki/installing-ffmpeg-on-windows
+[YoutubeExtractor]:https://github.com/flagbug/YoutubeExtractor
+[Json.NET]:http://www.newtonsoft.com/json

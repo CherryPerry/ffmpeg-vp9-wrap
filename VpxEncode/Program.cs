@@ -3,11 +3,14 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using VpxEncode.Math;
+using YoutubeExtractor;
 
 namespace VpxEncode
 {
@@ -24,7 +27,8 @@ namespace VpxEncode
                         SCALE = "scale", GENERATE_TIMING = "gent",
                         OPUS_RATE = "opusRate", NAME_PREFIX = "name",
                         AUDIO_FILE = "af", AUTOLIMIT = "alimit",
-                        AUTOLIMIT_DELTA = "alimitD", AUTOLIMIT_HISTORY = "alimitS";
+                        AUTOLIMIT_DELTA = "alimitD", AUTOLIMIT_HISTORY = "alimitS",
+                        YOUTUBE = "youtube";
   }
 
   static class ArgList
@@ -53,7 +57,8 @@ namespace VpxEncode
         { Arg.AUTOLIMIT_DELTA, new Arg(Arg.AUTOLIMIT_DELTA, "240", "{int} погрешность автоподгона в KB (default: 240)") },
         { Arg.AUTOLIMIT_HISTORY, new Arg(Arg.AUTOLIMIT_HISTORY, null, "{int:int} добавить историю попыток KB '10240:6567,13000:7800'") },
         { Arg.PREVIEW, new Arg(Arg.PREVIEW, null, "{00:00.000|00:00:00.000|0} кадр для превью") },
-        { Arg.PREVIEW_SOURCE, new Arg(Arg.PREVIEW_SOURCE, null, "{string} файл для превью, если нет, то берется из -file") }
+        { Arg.PREVIEW_SOURCE, new Arg(Arg.PREVIEW_SOURCE, null, "{string} файл для превью, если нет, то берется из -file") },
+        { Arg.YOUTUBE, new Arg(Arg.YOUTUBE, null, "{string} ссылка на видео с ютуба") }
       };
 
     public static void Parse(string[] args)
@@ -154,6 +159,12 @@ namespace VpxEncode
 
       ArgList.Parse(args);
 
+      if (ArgList.Get(Arg.YOUTUBE))
+      {
+        DownloadVideo();
+        return;
+      }
+
       string filePath = ArgList.Get(Arg.FILE).AsString();
       string subPath = ArgList.Get(Arg.SUBS).AsString();
       filePath = GetFullPath(filePath);
@@ -197,15 +208,19 @@ namespace VpxEncode
           Parallel.For(0, lines.Length, new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount / 2 },
             (i) => { startEncodeTiming(i); });
       }
-      else if (ArgList.Get(Arg.START_TIME) && ArgList.Get(Arg.END_TIME))
+      else
       {
-        if (ArgList.Get(Arg.AUTOLIMIT))
-          BitrateLookupEncode((newTarget) =>
-          {
-            return Encode(DateTime.Now.ToFileTimeUtc(), filePath, subPath, ArgList.Get(Arg.START_TIME).AsTimeSpan(), ArgList.Get(Arg.END_TIME).AsTimeSpan(), newTarget);
-          });
-        else
-          Encode(DateTime.Now.ToFileTimeUtc(), filePath, subPath, ArgList.Get(Arg.START_TIME).AsTimeSpan(), ArgList.Get(Arg.END_TIME).AsTimeSpan(), ArgList.Get(Arg.LIMIT).AsInt());
+        LookupEndTime(filePath);
+        if (ArgList.Get(Arg.END_TIME))
+        {
+          if (ArgList.Get(Arg.AUTOLIMIT))
+            BitrateLookupEncode((newTarget) =>
+            {
+              return Encode(DateTime.Now.ToFileTimeUtc(), filePath, subPath, ArgList.Get(Arg.START_TIME).AsTimeSpan(), ArgList.Get(Arg.END_TIME).AsTimeSpan(), newTarget);
+            });
+          else
+            Encode(DateTime.Now.ToFileTimeUtc(), filePath, subPath, ArgList.Get(Arg.START_TIME).AsTimeSpan(), ArgList.Get(Arg.END_TIME).AsTimeSpan(), ArgList.Get(Arg.LIMIT).AsInt());
+        }
       }
 
       MessageBox.Show("OK");
@@ -346,6 +361,42 @@ namespace VpxEncode
       File.Delete(Path.Combine(filePath, String.Format("temp_{0}-0.log", code)));
 
       return finalPath;
+    }
+
+    static string DownloadVideo()
+    {
+      string link = ArgList.Get(Arg.YOUTUBE).AsString();
+      IEnumerable<VideoInfo> videoInfos = DownloadUrlResolver.GetDownloadUrls(link);
+      VideoInfo vi = videoInfos.OrderByDescending(x => x.Resolution).First(x => x.VideoType == VideoType.Mp4);
+      if (vi.RequiresDecryption)
+        DownloadUrlResolver.DecryptDownloadUrl(vi);
+      VideoDownloader vd = new VideoDownloader(vi, Path.Combine(Environment.CurrentDirectory, vi.Title + vi.VideoExtension));
+      using (Mutex mutex = new Mutex())
+      {
+        vd.DownloadFinished += (sender, e) => { try { mutex.ReleaseMutex(); } catch { } };
+        vd.DownloadProgressChanged += (sender, e) => { Console.WriteLine("Downloading {0}%", e.ProgressPercentage); };
+        vd.Execute();
+        mutex.WaitOne();
+      }
+      return vd.SavePath;
+    }
+
+    static void LookupEndTime(string filePath)
+    {
+      if (!ArgList.Get(Arg.END_TIME))
+      {
+        Regex regex = new Regex(@".*Duration:(\s\d{2,}:\d{2}:\d{2}.\d{1,3}).*");
+        Match match = regex.Match(new FfprobeExecuter().ExecuteFfprobe('"' + filePath + '"'));
+        if (match.Success)
+        {
+          string value = match.Groups[1].Value.Trim();
+          int doti = value.LastIndexOf('.');
+          int delta = 3 - (value.Length - 1 - doti);
+          for (int i = 0; i < delta; i++)
+            value += '0';
+          ArgList.Get(Arg.END_TIME).Value = value;
+        }
+      }
     }
 
     static void GeneratePreview(string filePath)
