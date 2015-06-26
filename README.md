@@ -47,6 +47,16 @@ vp9 -file "1.mkv" -ss 01:00.000 -to 01:30.000 -limit 10240 -alimit
 ```
 Не любое видео можно подогнать, обычно не получаются ролики длиной меньше минуты.
 
+#####-preview и -preview_s
+Есть возможность добавить превью для уже полученного видео. Для этого выбери кадр (запомни его тайминг) из видео-файла и запусти:
+```
+vp9 -file webm_куда_добавить_превью.webm -preview_s исходник.mkv -preview 00:30.255
+```
+Учитывай, что для превью берется 50 мс, удостоверься, что превью не меняется за этот промежуток времени. Для того, чтобы взять превью из webm, к которому оно добавляется, не указывай -preview_s:
+```
+vp9 -file webm_куда_добавить_превью.webm -preview 00:30.255
+```
+
 [СКАЧАТЬ БЕСПЛАТНО БЕЗ СМС]:https://github.com/CherryPerry/ffmpeg-vp9-wrap/releases
 [установщиком]:https://github.com/CherryPerry/zeranoe-ffmpeg-update-csharp
 [гайдом]:https://github.com/pituz/webm-thread/wiki/installing-ffmpeg-on-windows

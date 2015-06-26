@@ -350,13 +350,52 @@ namespace VpxEncode
 
     static void GeneratePreview(string filePath)
     {
-      string preview_source = ArgList.Get(Arg.PREVIEW_SOURCE).AsString();
-      string preview_timing = ArgList.Get(Arg.PREVIEW).AsString();
+      string fileName = Path.GetFileName(filePath),
+             output = filePath.Substring(0, filePath.LastIndexOf('.') + 1) + "preview.webm",
+             previewSource;
+      if (!ArgList.Get(Arg.PREVIEW_SOURCE))
+        previewSource = filePath;
+      else
+        previewSource = GetFullPath(ArgList.Get(Arg.PREVIEW_SOURCE).AsString());
+      string previewTiming = ArgList.Get(Arg.PREVIEW).AsString();
+
+      // same scale
+      string scale = "";
+      Regex regex = new Regex(@".*Video:.*(\s\d+x\d+).*");
+      Match match = regex.Match(new FfprobeExecuter().ExecuteFfprobe('"' + filePath + '"'));
+      if (match.Success)
+      {
+        scale = match.Groups[1].Value.Trim();
+        scale = "-vf scale=" + scale;
+      }
 
       // preview.webm
-      string preview_webm = GetFolder(filePath) + "\\preview_" + DateTime.Now.ToFileTimeUtc().ToString() + ".webm";
-      string args = String.Format("-i {0} -c:v vp9 -b:v 0 -crf 4 -ss {1} -t 00:00:00.04 -quality best", preview_source, preview_timing, preview_webm);
+      long time = DateTime.Now.ToFileTimeUtc();
+      string previewWebm = GetFolder(filePath) + "\\preview_" + time.ToString() + ".webm";
+      string args = String.Format("-ss {0} -i \"{1}\" -c:v vp9 -b:v 0 -crf 4 -t 00:00:00.05 -quality best -an -sn {3} \"{2}\"",
+        previewTiming,
+        previewSource,
+        previewWebm,
+        scale);
       ExecuteFFMPEG(args);
+
+      // concat
+      string concatedWebm = String.Format("concat_{0}.webm", time);
+      string concatFile = String.Format("concat_{0}.txt", time);
+      File.WriteAllText(concatFile,
+        String.Format("file '{0}'\r\nfile '{1}'", previewWebm, filePath),
+        Encoding.ASCII);
+      args = String.Format("-f concat -i \"{0}\" -c copy \"{1}\"", concatFile, concatedWebm);
+      ExecuteFFMPEG(args);
+
+      // Audio
+      args = String.Format("-y -i \"{0}\" -itsoffset 00:00:00.05 -i \"{1}\" -map 0:0 -map 1:1 -c copy \"{2}\"", concatedWebm, filePath, output);
+      ExecuteFFMPEG(args);
+
+      // Delete
+      File.Delete(concatFile);
+      File.Delete(previewWebm);
+      File.Delete(concatedWebm);
     }
 
     static void ExecuteFFMPEG(string args)

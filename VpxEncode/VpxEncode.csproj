@@ -43,6 +43,7 @@
     <Reference Include="System.Windows.Forms" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="FfprobeExecuter.cs" />
     <Compile Include="Math\DichotomySolver.cs" />
     <Compile Include="Math\HordFuncSolver.cs" />
     <Compile Include="Math\IBitrateLookup.cs" />

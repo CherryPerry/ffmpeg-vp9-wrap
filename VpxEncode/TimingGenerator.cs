@@ -15,7 +15,7 @@ namespace VpxEncode
     public string File { get; private set; }
     public string[] Timings { get; set; }
 
-    private StringBuilder builder = new StringBuilder();
+    private string output;
 
     public TimingGenerator(string file)
     {
@@ -24,46 +24,14 @@ namespace VpxEncode
 
     public void Generate(bool toFile)
     {
-      ExecuteFfprobe();
+      output = new FfprobeExecuter().ExecuteFfprobe(String.Format("\"{0}\"", File));
       GetTimings(toFile);
-    }
-
-    void ExecuteFfprobe()
-    {
-      Process proc = new Process();
-      proc.StartInfo.FileName = "ffprobe.exe";
-      proc.StartInfo.Arguments = String.Format("\"{0}\"", File);
-      proc.StartInfo.UseShellExecute = false;
-      proc.StartInfo.RedirectStandardOutput = true;
-      proc.StartInfo.RedirectStandardError = true;
-      DataReceivedEventHandler handler = (sender, data) =>
-      {
-        if (data.Data != null)
-          ProcessString(data.Data);
-      };
-      proc.ErrorDataReceived += handler;
-      proc.OutputDataReceived += handler;
-      proc.Start();
-      proc.PriorityClass = ProcessPriorityClass.Idle;
-      proc.BeginOutputReadLine();
-      proc.BeginErrorReadLine();
-      proc.WaitForExit();
-      proc.Close();
-    }
-
-    void ProcessString(string str)
-    {
-      if (str.Length == Console.WindowWidth)
-        Console.Write(str);
-      else
-        Console.WriteLine(str);
-      builder.Append(str);
     }
 
     void GetTimings(bool toFile)
     {
       Regex reg = new Regex(@"Chapter #\d:\d: start (\d+.\d+), end (\d+.\d+)");
-      MatchCollection res = reg.Matches(builder.ToString());
+      MatchCollection res = reg.Matches(output);
       StringBuilder sb = new StringBuilder();
       LinkedList<string> asList = new LinkedList<string>();
       for (int i = 0; i < res.Count; i++)
