@@ -10,6 +10,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using VpxEncode.Math;
+using VpxEncode.Output;
 using YoutubeExtractor;
 
 namespace VpxEncode
@@ -305,6 +306,9 @@ namespace VpxEncode
       string startString = start.ToString("hh\\:mm\\:ss\\.fff"),
              timeLengthString = timeLength.ToString("hh\\:mm\\:ss\\.fff");
 
+      OutputProcessor sp = new SimpleProcessor();
+      ProcessingUnit pu = sp.CreateOne();
+
       // Audio settings
       string mapAudio = String.Empty;
       if (ArgList.Get(Arg.MAP_AUDIO))
@@ -314,7 +318,7 @@ namespace VpxEncode
 
       // Encode audio
       ExecuteFFMPEG(String.Format("-y -ss {1} -i \"{0}\" {5} -ac 2 -c:a opus -b:a {6}K -vbr on -vn -sn -t {2} {4} \"{3}\"",
-        audioFile, startString, timeLengthString, oggPath, ArgList.Get(Arg.OTHER_AUDIO).AsString(), mapAudio, opusRate));
+        audioFile, startString, timeLengthString, oggPath, ArgList.Get(Arg.OTHER_AUDIO).AsString(), mapAudio, opusRate), pu);
 
       // VideoFilter
       const string vfDefault = "-vf ";
@@ -323,7 +327,7 @@ namespace VpxEncode
       if (subs != null)
       {
         string format = subs.EndsWith("ass") || subs.EndsWith("ssa") ? "ass=\"{0}\"{1}" : "subtitles=\"{0}\"{1}";
-        format = String.Format(format, subs.Replace("[", "\\[").Replace("]", "\\]"), ArgList.Get(Arg.SUBS_INDEX).Command);
+        format = String.Format(format, subs.Replace("[", "\\[").Replace("]", "\\]").Replace(";", "\\;"), ArgList.Get(Arg.SUBS_INDEX).Command);
         format = String.Format(new CultureInfo("en"), "setpts=PTS+{0:0.######}/TB,{1},setpts=PTS-STARTPTS", start.TotalSeconds, format);
         vf.AppendForPrev(format);
       }
@@ -344,14 +348,14 @@ namespace VpxEncode
 
       ExecuteFFMPEG(
         String.Format("-y -ss {3} -i \"{0}\" -c:v vp9 {1} -tile-columns 6 -frame-parallel 1 -speed 4 -threads 8 -an {2} -t {4} -sn {7} -lag-in-frames 25 -pass 1 -auto-alt-ref 1 -passlogfile temp_{5} \"{6}\"",
-                      file, bitrateString, vf, startString, timeLengthString, code, webmPath, otherVideo));
+                      file, bitrateString, vf, startString, timeLengthString, code, webmPath, otherVideo), pu);
 
       ExecuteFFMPEG(
         String.Format("-y -ss {3} -i \"{0}\" -c:v vp9 {1} -tile-columns 6 -frame-parallel 1 -speed 1 -threads 8 -an {2} -t {4} -sn {7} -lag-in-frames 25 -pass 2 -auto-alt-ref 1 -quality {8} -passlogfile temp_{5} \"{6}\"",
-                      file, bitrateString, vf, startString, timeLengthString, code, webmPath, otherVideo, quality));
+                      file, bitrateString, vf, startString, timeLengthString, code, webmPath, otherVideo, quality), pu);
 
       // Concat
-      ExecuteFFMPEG(String.Format("-y -i \"{0}\" -i \"{1}\" -c copy \"{2}\"", webmPath, oggPath, finalPath));
+      ExecuteFFMPEG(String.Format("-y -i \"{0}\" -i \"{1}\" -c copy \"{2}\"", webmPath, oggPath, finalPath), pu);
 
       // Delete
       if (subsWereCopied)
@@ -359,6 +363,8 @@ namespace VpxEncode
       File.Delete(webmPath);
       File.Delete(oggPath);
       File.Delete(Path.Combine(filePath, String.Format("temp_{0}-0.log", code)));
+
+      sp.Destroy(pu);
 
       return finalPath;
     }
@@ -401,6 +407,9 @@ namespace VpxEncode
 
     static void GeneratePreview(string filePath)
     {
+      OutputProcessor sp = new SimpleProcessor();
+      ProcessingUnit pu = sp.CreateOne();
+
       string fileName = Path.GetFileName(filePath),
              output = filePath.Substring(0, filePath.LastIndexOf('.') + 1) + "preview.webm",
              previewSource;
@@ -428,7 +437,7 @@ namespace VpxEncode
         previewSource,
         previewWebm,
         scale);
-      ExecuteFFMPEG(args);
+      ExecuteFFMPEG(args, pu);
 
       // concat
       string concatedWebm = String.Format("concat_{0}.webm", time);
@@ -437,19 +446,21 @@ namespace VpxEncode
         String.Format("file '{0}'\r\nfile '{1}'", previewWebm, filePath),
         Encoding.ASCII);
       args = String.Format("-f concat -i \"{0}\" -c copy \"{1}\"", concatFile, concatedWebm);
-      ExecuteFFMPEG(args);
+      ExecuteFFMPEG(args, pu);
 
       // Audio
       args = String.Format("-y -i \"{0}\" -itsoffset 00:00:00.05 -i \"{1}\" -map 0:0 -map 1:1 -c copy \"{2}\"", concatedWebm, filePath, output);
-      ExecuteFFMPEG(args);
+      ExecuteFFMPEG(args, pu);
 
       // Delete
       File.Delete(concatFile);
       File.Delete(previewWebm);
       File.Delete(concatedWebm);
+
+      sp.Destroy(pu);
     }
 
-    static void ExecuteFFMPEG(string args)
+    static void ExecuteFFMPEG(string args, ProcessingUnit pu)
     {
       Process proc = new Process();
       proc.StartInfo.FileName = "ffmpeg.exe";
@@ -457,9 +468,9 @@ namespace VpxEncode
       proc.StartInfo.UseShellExecute = false;
       proc.StartInfo.RedirectStandardOutput = true;
       proc.StartInfo.RedirectStandardError = true;
-      proc.ErrorDataReceived += DataReceived;
-      proc.OutputDataReceived += DataReceived;
-      Console.WriteLine("\n\n" + args + "\n\n");
+      proc.ErrorDataReceived += pu.DataReceived;
+      proc.OutputDataReceived += pu.DataReceived;
+      pu.Write("\n\n" + args + "\n\n");
       proc.Start();
       proc.PriorityClass = ProcessPriorityClass.Idle;
       proc.BeginOutputReadLine();
