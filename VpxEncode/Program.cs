@@ -275,21 +275,15 @@ namespace VpxEncode
 
       bool subsWereCopied = false;
       string subsFilename = Path.GetFileName(subs);
-      if (ArgList.Get(Arg.FIX_SUBS) || GetFolder(subs) != Environment.CurrentDirectory)
+      if (ArgList.Get(Arg.FIX_SUBS) && SubStationAlpha.IsAcceptable(subs))
       {
         string subsNew = Path.Combine(Environment.CurrentDirectory, subsFilename);
-        if (ArgList.Get(Arg.FIX_SUBS) && SubStationAlpha.IsAcceptable(subs))
-        {
-          subsFilename += i.ToString() + "_ARIAL.ass";
-          SubStationAlpha ssa = new SubStationAlpha(subs);
-          ssa.ChangeFontAndSave(subsNew);
-        }
-        else
-          File.Copy(subs, subsNew);
+        subsFilename += i.ToString() + "_ARIAL.ass";
+        SubStationAlpha ssa = new SubStationAlpha(subs);
+        ssa.ChangeFontAndSave(subsNew);
         subs = subsNew;
         subsWereCopied = true;
       }
-      subs = subsFilename;
 
       string code = null;
       if (i < 10000)
@@ -321,13 +315,13 @@ namespace VpxEncode
         audioFile, startString, timeLengthString, oggPath, ArgList.Get(Arg.OTHER_AUDIO).AsString(), mapAudio, opusRate), pu);
 
       // VideoFilter
-      const string vfDefault = "-vf ";
+      const string vfDefault = "-vf \"";
       StringBuilder vf = new StringBuilder(vfDefault);
       string scale = ArgList.Get(Arg.SCALE).AsString();
       if (subs != null)
       {
-        string format = subs.EndsWith("ass") || subs.EndsWith("ssa") ? "ass=\"{0}\"{1}" : "subtitles=\"{0}\"{1}";
-        format = String.Format(format, subs.Replace("[", "\\[").Replace("]", "\\]").Replace(";", "\\;"), ArgList.Get(Arg.SUBS_INDEX).Command);
+        string format = subs.EndsWith("ass") || subs.EndsWith("ssa") ? "ass='{0}'{1}" : "subtitles='{0}'{1}";
+        format = String.Format(format, subs.Replace(@"\", @"\\").Replace(":", @"\:"), ArgList.Get(Arg.SUBS_INDEX).Command);
         format = String.Format(new CultureInfo("en"), "setpts=PTS+{0:0.######}/TB,{1},setpts=PTS-STARTPTS", start.TotalSeconds, format);
         vf.AppendForPrev(format);
       }
@@ -335,6 +329,8 @@ namespace VpxEncode
         vf.AppendIfPrev(",").AppendForPrev(String.Format("scale={0}", scale));
       if (vf.Length == vfDefault.Length)
         vf.Clear();
+      else
+        vf.Append("\" ");
 
       // Encode 2-pass video
       string quality = ArgList.Get(Arg.QUALITY).AsString();
@@ -346,9 +342,9 @@ namespace VpxEncode
       StringBuilder otherVideo = new StringBuilder();
       otherVideo.AppendForPrev(ArgList.Get(Arg.OTHER_VIDEO).AsString()).AppendIfPrev(" ");
 
-      ExecuteFFMPEG(
-        String.Format("-y -ss {3} -i \"{0}\" -c:v vp9 {1} -tile-columns 6 -frame-parallel 1 -speed 4 -threads 8 -an {2} -t {4} -sn {7} -lag-in-frames 25 -pass 1 -auto-alt-ref 1 -passlogfile temp_{5} \"{6}\"",
-                      file, bitrateString, vf, startString, timeLengthString, code, webmPath, otherVideo), pu);
+      string args = String.Format("-y -ss {3} -i \"{0}\" -c:v vp9 {1} -tile-columns 6 -frame-parallel 1 -speed 4 -threads 8 -an {2} -t {4} -sn {7} -lag-in-frames 25 -pass 1 -auto-alt-ref 1 -passlogfile temp_{5} \"{6}\"",
+                      file, bitrateString, vf, startString, timeLengthString, code, webmPath, otherVideo);
+      ExecuteFFMPEG(args, pu);
 
       ExecuteFFMPEG(
         String.Format("-y -ss {3} -i \"{0}\" -c:v vp9 {1} -tile-columns 6 -frame-parallel 1 -speed 1 -threads 8 -an {2} -t {4} -sn {7} -lag-in-frames 25 -pass 2 -auto-alt-ref 1 -quality {8} -passlogfile temp_{5} \"{6}\"",
