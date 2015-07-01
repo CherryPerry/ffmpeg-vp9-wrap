@@ -29,7 +29,7 @@ namespace VpxEncode
                         OPUS_RATE = "opusRate", NAME_PREFIX = "name",
                         AUDIO_FILE = "af", AUTOLIMIT = "alimit",
                         AUTOLIMIT_DELTA = "alimitD", AUTOLIMIT_HISTORY = "alimitS",
-                        YOUTUBE = "youtube";
+                        YOUTUBE = "youtube", CROP = "crop";
   }
 
   static class ArgList
@@ -49,7 +49,7 @@ namespace VpxEncode
         { Arg.LIMIT, new Arg(Arg.LIMIT, "10240", "{int} лимит в KB (default: 10240)") },
         { Arg.OPUS_RATE, new Arg(Arg.OPUS_RATE, "80", "{int} битрейт аудио (Opus) в Kbps (default: 80)") },
         { Arg.NAME_PREFIX, new Arg(Arg.NAME_PREFIX, string.Empty, "префикс имени результата") },
-        { Arg.TIMINGS_INDEX, new Arg(Arg.TIMINGS_INDEX, null, "индекс одного файла для обработки при работе с файлом таймингов") },
+        { Arg.TIMINGS_INDEX, new Arg(Arg.TIMINGS_INDEX, null, "индекс одного или нескольких (через запятую) файлов для обработки при работе с файлом таймингов") },
         { Arg.FIX_SUBS, new Arg(Arg.FIX_SUBS, null, "замена шрифтов в ass субтитрах на Arial (если ffmpeg не находит шрифт)", false) },
         { Arg.SUBS_INDEX, new Arg(Arg.SUBS_INDEX, null, "индекс субтитров, если в контейнере", ":si={0}") },
         { Arg.AUDIO_FILE, new Arg(Arg.AUDIO_FILE, null, "{string} внешняя аудиодорожка", "-map 0:{0}") },
@@ -59,7 +59,8 @@ namespace VpxEncode
         { Arg.AUTOLIMIT_HISTORY, new Arg(Arg.AUTOLIMIT_HISTORY, null, "{int:int} добавить историю попыток KB '10240:6567,13000:7800'") },
         { Arg.PREVIEW, new Arg(Arg.PREVIEW, null, "{00:00.000|00:00:00.000|0} кадр для превью") },
         { Arg.PREVIEW_SOURCE, new Arg(Arg.PREVIEW_SOURCE, null, "{string} файл для превью, если нет, то берется из -file") },
-        { Arg.YOUTUBE, new Arg(Arg.YOUTUBE, null, "{string} ссылка на видео с ютуба") }
+        { Arg.YOUTUBE, new Arg(Arg.YOUTUBE, null, "{string} ссылка на видео с ютуба") },
+        { Arg.CROP, new Arg(Arg.CROP, null, "обрезка черных полос", false) }
       };
 
     public static void Parse(string[] args)
@@ -201,9 +202,12 @@ namespace VpxEncode
         };
         if (ArgList.Get(Arg.TIMINGS_INDEX))
         {
-          int singleIndex = ArgList.Get(Arg.TIMINGS_INDEX).AsInt();
-          if (lines.Length > singleIndex && singleIndex >= 0)
-            startEncodeTiming(singleIndex);
+          int[] indexes = ArgList.Get(Arg.TIMINGS_INDEX).AsString().Split(',').Select(x => int.Parse(x)).ToArray();
+          Parallel.ForEach(indexes, new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount / 2 }, (singleIndex) =>
+          {
+            if (lines.Length > singleIndex && singleIndex >= 0)
+              startEncodeTiming(singleIndex);
+          });
         }
         else
           Parallel.For(0, lines.Length, new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount / 2 },
@@ -318,15 +322,22 @@ namespace VpxEncode
       const string vfDefault = "-vf \"";
       StringBuilder vf = new StringBuilder(vfDefault);
       string scale = ArgList.Get(Arg.SCALE).AsString();
+      if (scale != "no")
+        vf.AppendIfPrev(",").AppendForPrev(String.Format("scale={0}", scale));
+      if (ArgList.Get(Arg.CROP))
+      {
+        string crop = GetCrop(file, startString, scale);
+        if (crop != null)
+          vf.AppendIfPrev(",").AppendForPrev(crop);
+        pu.Write("CROP: " + crop);
+      }
       if (subs != null)
       {
         string format = subs.EndsWith("ass") || subs.EndsWith("ssa") ? "ass='{0}'{1}" : "subtitles='{0}'{1}";
         format = String.Format(format, subs.Replace(@"\", @"\\").Replace(":", @"\:"), ArgList.Get(Arg.SUBS_INDEX).Command);
         format = String.Format(new CultureInfo("en"), "setpts=PTS+{0:0.######}/TB,{1},setpts=PTS-STARTPTS", start.TotalSeconds, format);
-        vf.AppendForPrev(format);
+        vf.AppendIfPrev(",").AppendForPrev(format);
       }
-      if (scale != "no")
-        vf.AppendIfPrev(",").AppendForPrev(String.Format("scale={0}", scale));
       if (vf.Length == vfDefault.Length)
         vf.Clear();
       else
@@ -365,6 +376,19 @@ namespace VpxEncode
       return finalPath;
     }
 
+    static string GetCrop(string file, string start, string scale)
+    {
+      Executer e = new Executer(Executer.FFMPEG);
+      string args = String.Format("-ss {0} -i \"{1}\" -vframes 10 -vf {2}cropdetect=24:2:0 -f null NUL", start, file,
+        (scale != "no" ? ("scale=" + scale + ",") : ""));
+      string output = e.Execute(args);
+      Regex regex = new Regex(@".*(crop=\d+:\d+:\d+:\d+).*");
+      Match match = regex.Match(output);
+      if (!match.Success)
+        return null;
+      return match.Groups[match.Groups.Count - 1].Value;
+    }
+
     static string DownloadVideo()
     {
       string link = ArgList.Get(Arg.YOUTUBE).AsString();
@@ -388,7 +412,7 @@ namespace VpxEncode
       if (!ArgList.Get(Arg.END_TIME))
       {
         Regex regex = new Regex(@".*Duration:(\s\d{2,}:\d{2}:\d{2}.\d{1,3}).*");
-        Match match = regex.Match(new FfprobeExecuter().ExecuteFfprobe('"' + filePath + '"'));
+        Match match = regex.Match(new Executer().Execute('"' + filePath + '"'));
         if (match.Success)
         {
           string value = match.Groups[1].Value.Trim();
@@ -418,7 +442,7 @@ namespace VpxEncode
       // same scale
       string scale = "";
       Regex regex = new Regex(@".*Video:.*(\s\d+x\d+).*");
-      Match match = regex.Match(new FfprobeExecuter().ExecuteFfprobe('"' + filePath + '"'));
+      Match match = regex.Match(new Executer().Execute('"' + filePath + '"'));
       if (match.Success)
       {
         scale = match.Groups[1].Value.Trim();

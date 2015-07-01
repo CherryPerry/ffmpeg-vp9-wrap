@@ -4,20 +4,24 @@ using System.Text;
 
 namespace VpxEncode
 {
-  public sealed class FfprobeExecuter
+  public sealed class Executer
   {
-    private StringBuilder builder;
+    public const string FFPROBE = "ffprobe.exe", FFMPEG = "ffmpeg.exe";
 
-    public FfprobeExecuter()
+    private StringBuilder builder;
+    private string exe = null;
+
+    public Executer(string exe = FFPROBE)
     {
       builder = new StringBuilder();
+      this.exe = exe;
     }
 
-    public string ExecuteFfprobe(string args)
+    public string Execute(string args)
     {
       builder.Clear();
       Process proc = new Process();
-      proc.StartInfo.FileName = "ffprobe.exe";
+      proc.StartInfo.FileName = exe;
       proc.StartInfo.Arguments = args;
       proc.StartInfo.UseShellExecute = false;
       proc.StartInfo.RedirectStandardOutput = true;
