@@ -187,44 +187,44 @@ namespace VpxEncode
       if (ArgList.Get(Arg.TIMINGS))
       {
         string[] lines = File.ReadAllLines(GetFullPath(ArgList.Get(Arg.TIMINGS).AsString()));
+        ushort[] indexes = null;
+        if (ArgList.Get(Arg.TIMINGS_INDEX))
+          indexes = ArgList.Get(Arg.TIMINGS_INDEX).AsString().Split(',').Select(x => ushort.Parse(x)).ToArray();
+        else
+        {
+          ushort i = 0;
+          indexes = lines.Select(x => i++).ToArray();
+        }
         Action<int> startEncodeTiming = (index) =>
         {
           Console.WriteLine("Start encode timing file {0} line", index);
           string[] splitted = lines[index].Split(' ');
           if (splitted.Length == 2)
-            if (ArgList.Get(Arg.AUTOLIMIT))
-              BitrateLookupEncode((newTarget) =>
-              {
-                return Encode(index, filePath, subPath, ParseToTimespan(splitted[0]), ParseToTimespan(splitted[1]), newTarget);
-              });
-            else
-              Encode(index, filePath, subPath, ParseToTimespan(splitted[0]), ParseToTimespan(splitted[1]), ArgList.Get(Arg.LIMIT).AsInt());
-        };
-        if (ArgList.Get(Arg.TIMINGS_INDEX))
-        {
-          int[] indexes = ArgList.Get(Arg.TIMINGS_INDEX).AsString().Split(',').Select(x => int.Parse(x)).ToArray();
-          Parallel.ForEach(indexes, new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount / 2 }, (singleIndex) =>
           {
-            if (lines.Length > singleIndex && singleIndex >= 0)
-              startEncodeTiming(singleIndex);
-          });
-        }
-        else
-          Parallel.For(0, lines.Length, new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount / 2 },
-            (i) => { startEncodeTiming(i); });
+            TimeSpan start = ParseToTimespan(splitted[0]), end = ParseToTimespan(splitted[1]);
+            if (ArgList.Get(Arg.AUTOLIMIT))
+              BitrateLookupEncode((newTarget) => { return Encode(index, filePath, subPath, start, end, newTarget); });
+            else
+              Encode(index, filePath, subPath, start, end, ArgList.Get(Arg.LIMIT).AsInt());
+          }
+        };
+        Parallel.ForEach(indexes, new ParallelOptions { MaxDegreeOfParallelism = System.Math.Max(1, Environment.ProcessorCount / 2) }, (singleIndex) =>
+        {
+          if (lines.Length > singleIndex && singleIndex >= 0)
+            startEncodeTiming(singleIndex);
+        });
       }
       else
       {
         LookupEndTime(filePath);
         if (ArgList.Get(Arg.END_TIME))
         {
+          TimeSpan start = ArgList.Get(Arg.START_TIME).AsTimeSpan(), end = ArgList.Get(Arg.END_TIME).AsTimeSpan();
+          long id = DateTime.Now.ToFileTimeUtc();
           if (ArgList.Get(Arg.AUTOLIMIT))
-            BitrateLookupEncode((newTarget) =>
-            {
-              return Encode(DateTime.Now.ToFileTimeUtc(), filePath, subPath, ArgList.Get(Arg.START_TIME).AsTimeSpan(), ArgList.Get(Arg.END_TIME).AsTimeSpan(), newTarget);
-            });
+            BitrateLookupEncode((newTarget) => { return Encode(id, filePath, subPath, start, end, newTarget); });
           else
-            Encode(DateTime.Now.ToFileTimeUtc(), filePath, subPath, ArgList.Get(Arg.START_TIME).AsTimeSpan(), ArgList.Get(Arg.END_TIME).AsTimeSpan(), ArgList.Get(Arg.LIMIT).AsInt());
+            Encode(id, filePath, subPath, start, end, ArgList.Get(Arg.LIMIT).AsInt());
         }
       }
 
@@ -321,16 +321,17 @@ namespace VpxEncode
       // VideoFilter
       const string vfDefault = "-vf \"";
       StringBuilder vf = new StringBuilder(vfDefault);
-      string scale = ArgList.Get(Arg.SCALE).AsString();
-      if (scale != "no")
-        vf.AppendIfPrev(",").AppendForPrev(String.Format("scale={0}", scale));
+
       if (ArgList.Get(Arg.CROP))
       {
-        string crop = GetCrop(file, startString, scale);
+        string crop = GetCrop(file, startString, timeLengthString);
         if (crop != null)
           vf.AppendIfPrev(",").AppendForPrev(crop);
         pu.Write("CROP: " + crop);
       }
+      string scale = ArgList.Get(Arg.SCALE).AsString();
+      if (scale != "no")
+        vf.AppendIfPrev(",").AppendForPrev(String.Format("scale={0}", scale));
       if (subs != null)
       {
         string format = subs.EndsWith("ass") || subs.EndsWith("ssa") ? "ass='{0}'{1}" : "subtitles='{0}'{1}";
@@ -347,19 +348,19 @@ namespace VpxEncode
       string quality = ArgList.Get(Arg.QUALITY).AsString();
       FileInfo info = new FileInfo(oggPath);
       double audioSize = info.Length / 1024d;
-      int bitrate = (int)((sizeLimit - audioSize) * 8 * 0.95 / timeLength.TotalSeconds);
+      int bitrate = (int)((sizeLimit - audioSize) * 8 / timeLength.TotalSeconds);
       string bitrateString = String.Format("-b:v {0}K", bitrate);
 
       StringBuilder otherVideo = new StringBuilder();
       otherVideo.AppendForPrev(ArgList.Get(Arg.OTHER_VIDEO).AsString()).AppendIfPrev(" ");
 
-      string args = String.Format("-y -ss {3} -i \"{0}\" -c:v vp9 {1} -tile-columns 6 -frame-parallel 1 -speed 4 -threads 8 -an {2} -t {4} -sn {7} -lag-in-frames 25 -pass 1 -auto-alt-ref 1 -passlogfile temp_{5} \"{6}\"",
+      string args = String.Format("-y -ss {3} -i \"{0}\" -c:v vp9 {1} -tile-columns 1 -frame-parallel 1 -speed 4 -threads 4 -an {2} -t {4} -sn {7} -lag-in-frames 25 -pass 1 -auto-alt-ref 1 -passlogfile temp_{5} \"{6}\"",
                       file, bitrateString, vf, startString, timeLengthString, code, webmPath, otherVideo);
       ExecuteFFMPEG(args, pu);
 
-      ExecuteFFMPEG(
-        String.Format("-y -ss {3} -i \"{0}\" -c:v vp9 {1} -tile-columns 6 -frame-parallel 1 -speed 1 -threads 8 -an {2} -t {4} -sn {7} -lag-in-frames 25 -pass 2 -auto-alt-ref 1 -quality {8} -passlogfile temp_{5} \"{6}\"",
-                      file, bitrateString, vf, startString, timeLengthString, code, webmPath, otherVideo, quality), pu);
+      args = String.Format("-y -ss {3} -i \"{0}\" -c:v vp9 {1} -tile-columns 1 -frame-parallel 1 -speed 1 -threads 4 -an {2} -t {4} -sn {7} -lag-in-frames 25 -pass 2 -auto-alt-ref 1 -quality {8} -passlogfile temp_{5} \"{6}\"",
+              file, bitrateString, vf, startString, timeLengthString, code, webmPath, otherVideo, quality);
+      ExecuteFFMPEG(args, pu);
 
       // Concat
       ExecuteFFMPEG(String.Format("-y -i \"{0}\" -i \"{1}\" -c copy \"{2}\"", webmPath, oggPath, finalPath), pu);
@@ -376,11 +377,10 @@ namespace VpxEncode
       return finalPath;
     }
 
-    static string GetCrop(string file, string start, string scale)
+    static string GetCrop(string file, string start, string t)
     {
       Executer e = new Executer(Executer.FFMPEG);
-      string args = String.Format("-ss {0} -i \"{1}\" -vframes 10 -vf {2}cropdetect=24:2:0 -f null NUL", start, file,
-        (scale != "no" ? ("scale=" + scale + ",") : ""));
+      string args = String.Format("-ss {0} -i \"{1}\" -t {2} -vf cropdetect=24:2:0 -f null NUL", start, file, t);
       string output = e.Execute(args);
       Regex regex = new Regex(@".*(crop=\d+:\d+:\d+:\d+).*");
       Match match = regex.Match(output);
