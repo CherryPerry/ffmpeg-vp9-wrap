@@ -220,11 +220,10 @@ namespace VpxEncode
         if (ArgList.Get(Arg.END_TIME))
         {
           TimeSpan start = ArgList.Get(Arg.START_TIME).AsTimeSpan(), end = ArgList.Get(Arg.END_TIME).AsTimeSpan();
-          long id = DateTime.Now.ToFileTimeUtc();
           if (ArgList.Get(Arg.AUTOLIMIT))
-            BitrateLookupEncode((newTarget) => { return Encode(id, filePath, subPath, start, end, newTarget); });
+            BitrateLookupEncode((newTarget) => { return Encode(DateTime.Now.ToFileTimeUtc(), filePath, subPath, start, end, newTarget); });
           else
-            Encode(id, filePath, subPath, start, end, ArgList.Get(Arg.LIMIT).AsInt());
+            Encode(DateTime.Now.ToFileTimeUtc(), filePath, subPath, start, end, ArgList.Get(Arg.LIMIT).AsInt());
         }
       }
 
@@ -363,7 +362,8 @@ namespace VpxEncode
       ExecuteFFMPEG(args, pu);
 
       // Concat
-      ExecuteFFMPEG(String.Format("-y -i \"{0}\" -i \"{1}\" -c copy \"{2}\"", webmPath, oggPath, finalPath), pu);
+      args = String.Format("-y -i \"{0}\" -i \"{1}\" -c copy -metadata title=\"{3}\" \"{2}\"", webmPath, oggPath, finalPath, Path.GetFileNameWithoutExtension(file));
+      ExecuteFFMPEG(args, pu);
 
       // Delete
       if (subsWereCopied)
