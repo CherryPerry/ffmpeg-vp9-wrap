@@ -42,7 +42,7 @@ namespace VpxEncode
         { Arg.START_TIME, new Arg(Arg.START_TIME, "0", "{00:00.000|00:00:00.000|0} начало отрезка") },
         { Arg.END_TIME, new Arg(Arg.END_TIME, null, "{00:00.000|00:00:00.000|0} конец отрезка") },
         { Arg.MAP_AUDIO, new Arg(Arg.MAP_AUDIO, null, "{int} для смены аудиодорожки (эквивалент -map 0:{int})") },
-        { Arg.SCALE, new Arg(Arg.SCALE, "-1:540", "no|{int:int} скейл изображения (default: -1:540)") },
+        { Arg.SCALE, new Arg(Arg.SCALE, "960:-1", "no|{int:int} скейл изображения (default: 960:-1)") },
         { Arg.OTHER_VIDEO, new Arg(Arg.OTHER_VIDEO, string.Empty, "{string} доп. параметры выходного файла видео \"-qmin 30\"") },
         { Arg.OTHER_AUDIO, new Arg(Arg.OTHER_AUDIO, string.Empty, "{string} доп. параметры выходного файла аудио \"-af=volume=3\"") },
         { Arg.QUALITY, new Arg(Arg.QUALITY, "good", "{best|good} качество") },
@@ -362,7 +362,7 @@ namespace VpxEncode
       ExecuteFFMPEG(args, pu);
 
       // Concat
-      args = String.Format("-y -i \"{0}\" -i \"{1}\" -c copy -metadata title=\"{3}\" \"{2}\"", webmPath, oggPath, finalPath, Path.GetFileNameWithoutExtension(file));
+      args = String.Format("-y -i \"{0}\" -i \"{1}\" -c copy -metadata title=\"{3} encoded by github.com/CherryPerry/ffmpeg-vp9-wrap\" \"{2}\"", webmPath, oggPath, finalPath, Path.GetFileNameWithoutExtension(file));
       ExecuteFFMPEG(args, pu);
 
       // Delete
