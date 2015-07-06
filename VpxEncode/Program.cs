@@ -9,7 +9,6 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using VpxEncode.Math;
 using VpxEncode.Output;
 using YoutubeExtractor;
 
@@ -234,7 +233,7 @@ namespace VpxEncode
     {
       int limit = ArgList.Get(Arg.LIMIT).AsInt();
       int delta = ArgList.Get(Arg.AUTOLIMIT_DELTA).AsInt();
-      IBitrateLookup bl = new LinearBitrateLookup(limit - delta / 2);
+      LinearBitrateLookup bl = new LinearBitrateLookup(limit - delta / 2);
 
       string history = ArgList.Get(Arg.AUTOLIMIT_HISTORY).AsString();
       if (!String.IsNullOrWhiteSpace(history))

@@ -1,14 +1,31 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 
-namespace VpxEncode.Math
+namespace VpxEncode
 {
   /// <summary>
   /// IBitrateLookup with line method
   /// </summary>
-  sealed class LinearBitrateLookup : IBitrateLookup
+  sealed class LinearBitrateLookup
   {
+    struct Point
+    {
+      public int Target { get; set; }
+      public int Current { get; set; }
+
+      public override string ToString()
+      {
+        return String.Format("{0} -> {1}", Target, Current);
+      }
+
+      public override int GetHashCode()
+      {
+        return Target ^ Current;
+      }
+    }
+
     private int TargetLimit;
     private HashSet<Point> Targets = new HashSet<Point>();
 
