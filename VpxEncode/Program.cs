@@ -448,7 +448,7 @@ namespace VpxEncode
 
       // same scale
       string scale = "";
-      Regex regex = new Regex(@".*Video:.*(\s\d+x\d+).*");
+      Regex regex = new Regex(@".*Video:.*\,\s(\d+x\d+).*");
       Match match = regex.Match(new Executer().Execute('"' + filePath + '"'));
       if (match.Success)
       {
