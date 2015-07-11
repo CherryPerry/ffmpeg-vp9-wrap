@@ -406,21 +406,29 @@ namespace VpxEncode
       return vd.SavePath;
     }
 
+    static string GetEndTime(string filePath)
+    {
+      Regex regex = new Regex(@".*Duration:(\s\d{2,}:\d{2}:\d{2}.\d{1,3}).*");
+      Match match = regex.Match(new Executer(Executer.FFPROBE).Execute('"' + filePath + '"'));
+      if (match.Success)
+      {
+        string value = match.Groups[1].Value.Trim();
+        int doti = value.LastIndexOf('.');
+        int delta = 3 - (value.Length - 1 - doti);
+        for (int i = 0; i < delta; i++)
+          value += '0';
+        return value;
+      }
+      return null;
+    }
+
     static void LookupEndTime(string filePath)
     {
       if (!ArgList.Get(Arg.END_TIME))
       {
-        Regex regex = new Regex(@".*Duration:(\s\d{2,}:\d{2}:\d{2}.\d{1,3}).*");
-        Match match = regex.Match(new Executer().Execute('"' + filePath + '"'));
-        if (match.Success)
-        {
-          string value = match.Groups[1].Value.Trim();
-          int doti = value.LastIndexOf('.');
-          int delta = 3 - (value.Length - 1 - doti);
-          for (int i = 0; i < delta; i++)
-            value += '0';
+        string value = GetEndTime(filePath);
+        if (value != null)
           ArgList.Get(Arg.END_TIME).Value = value;
-        }
       }
     }
 
@@ -451,7 +459,7 @@ namespace VpxEncode
       // preview.webm
       long time = DateTime.Now.ToFileTimeUtc();
       string previewWebm = GetFolder(filePath) + "\\preview_" + time.ToString() + ".webm";
-      string args = String.Format("-ss {0} -i \"{1}\" -c:v vp9 -b:v 0 -crf 4 -t 00:00:00.05 -quality best -an -sn {3} \"{2}\"",
+      string args = String.Format("-ss {0} -i \"{1}\" -c:v vp9 -b:v 0 -crf 4 -vframes 1 -quality best -an -sn {3} \"{2}\"",
         previewTiming,
         previewSource,
         previewWebm,
@@ -468,7 +476,10 @@ namespace VpxEncode
       ExecuteFFMPEG(args, pu);
 
       // Audio
-      args = String.Format("-y -i \"{0}\" -itsoffset 00:00:00.05 -i \"{1}\" -map 0:0 -map 1:1 -c copy \"{2}\"", concatedWebm, filePath, output);
+      string dur = GetEndTime(previewWebm);
+      if (dur == null)
+        dur = "0.04";
+      args = String.Format("-y -i \"{0}\" -itsoffset {3} -i \"{1}\" -map 0:0 -map 1:1 -c copy \"{2}\"", concatedWebm, filePath, output, dur);
       ExecuteFFMPEG(args, pu);
 
       // Delete

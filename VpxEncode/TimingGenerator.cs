@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -30,7 +29,7 @@ namespace VpxEncode
 
     void GetTimings(bool toFile)
     {
-      Regex reg = new Regex(@"Chapter #\d:\d: start (\d+.\d+), end (\d+.\d+)");
+      Regex reg = new Regex(@"Chapter #\d+:\d+: start (\d+.\d+), end (\d+.\d+)");
       MatchCollection res = reg.Matches(output);
       StringBuilder sb = new StringBuilder();
       LinkedList<string> asList = new LinkedList<string>();
