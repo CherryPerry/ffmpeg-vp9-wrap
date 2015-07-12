@@ -28,7 +28,8 @@ namespace VpxEncode
                         OPUS_RATE = "opusRate", NAME_PREFIX = "name",
                         AUDIO_FILE = "af", AUTOLIMIT = "alimit",
                         AUTOLIMIT_DELTA = "alimitD", AUTOLIMIT_HISTORY = "alimitS",
-                        YOUTUBE = "youtube", CROP = "crop";
+                        YOUTUBE = "youtube", CROP = "crop",
+                        INSTALL = "install";
   }
 
   static class ArgList
@@ -59,7 +60,8 @@ namespace VpxEncode
         { Arg.PREVIEW, new Arg(Arg.PREVIEW, null, "{00:00.000|00:00:00.000|0} кадр для превью") },
         { Arg.PREVIEW_SOURCE, new Arg(Arg.PREVIEW_SOURCE, null, "{string} файл для превью, если нет, то берется из -file") },
         { Arg.YOUTUBE, new Arg(Arg.YOUTUBE, null, "{string} ссылка на видео с ютуба") },
-        { Arg.CROP, new Arg(Arg.CROP, null, "обрезка черных полос", false) }
+        { Arg.CROP, new Arg(Arg.CROP, null, "обрезка черных полос", false) },
+        { Arg.INSTALL, new Arg(Arg.INSTALL, null, "установка ffmpeg в систему (только при запуске от имени Администратора)", false) }
       };
 
     public static void Parse(string[] args)
@@ -159,6 +161,13 @@ namespace VpxEncode
       }
 
       ArgList.Parse(args);
+
+      if (ArgList.Get(Arg.INSTALL))
+      {
+        FfmpegLoader loader = new FfmpegLoader();
+        Task.WaitAll(loader.Install());
+        return;
+      }
 
       if (ArgList.Get(Arg.YOUTUBE))
       {

@@ -5,7 +5,19 @@
 [СКАЧАТЬ БЕСПЛАТНО БЕЗ СМС]
 
 ####Запуск
-Перед запуском установи ffmpeg, добавь путь к самому vp9.exe (для удобства) и к ffmpeg.exe (для работы приложения) в Path, настрой фонтконфиг. Можешь воспользоваться [установщиком] или [гайдом].
+Перед запуском установи ffmpeg, добавь путь к самому vp9.exe (для удобства) и к ffmpeg.exe, ffprobe.exe (для работы приложения) в Path, настрой фонтконфиг. Можешь воспользоваться [установщиком] или [гайдом].
+**ИЛИ**
+Запусти скачанный vp9.exe из консоли, запущенной с правами Админстатора, с ключом -install.
+```
+vp9 -install
+```
+Программа:
+- Качает архивчик с zeranoe ffmpeg под текущую архитектуру (x86 или x86_64)
+- Распаковывает в папку установки (C:\Program Files\FFMPEG Compact)
+- Прописывает в Path путь до папки установки (можно запускать ffmpeg, ffprobe, vp9 из любой папки)
+- Настраивает fontconfig для хардсаба (задает системные переменные и создает fonts.conf)
+- Копирует vp9.exe в папку установки
+
 Не забудь поставить .net framework 4.5!
 
 ####Кодирование
@@ -20,9 +32,6 @@ vp9 -file "1.mkv" -subs "1.ass" -ss 01:00.000 -to 01:30.000
 vp9
 ```
 
-####Зачем права админа?
-Запускаем и пишем в рандомные папки, может не оказаться прав.
-
 ####Замечания по командам
 #####-t и -ti
 Можно кодить параллельно несколько webm из одного исходника. Для этого создай файл с любым названием следующего содержания:
@@ -32,7 +41,7 @@ vp9
 ```
 Далее запусти vp9.exe с следующими аргументами:
 ```
-vp9 -file 1.mkv -t имя_файла_времени
+vp9 -file 1.mkv -t тайминги.txt
 ```
 Для того, чтобы сделать конкретно какую-то сторчку из файла, добавь -ti № строки (или строк через запятую), считая от 0.
 #####-alimit и -limit
@@ -71,9 +80,13 @@ vp9 -file "1.mkv" -crop
 ####Сторонние библиотеки
 - [YoutubeExtractor] MIT License
 - [Json.NET] MIT license
+- [Html Agility Pack] Microsoft Public License
+- [SharpCompress] Microsoft Public License
 
 [СКАЧАТЬ БЕСПЛАТНО БЕЗ СМС]:https://github.com/CherryPerry/ffmpeg-vp9-wrap/releases
 [установщиком]:https://github.com/CherryPerry/zeranoe-ffmpeg-update-csharp
 [гайдом]:https://github.com/pituz/webm-thread/wiki/installing-ffmpeg-on-windows
 [YoutubeExtractor]:https://github.com/flagbug/YoutubeExtractor
 [Json.NET]:http://www.newtonsoft.com/json
+[Html Agility Pack]:https://htmlagilitypack.codeplex.com/
+[SharpCompress]:https://sharpcompress.codeplex.com/

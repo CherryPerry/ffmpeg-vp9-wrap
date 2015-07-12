@@ -1,11 +1,9 @@
 ﻿using HtmlAgilityPack;
 using SharpCompress.Archive.SevenZip;
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
-using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -15,29 +13,16 @@ namespace VpxEncode
 {
   class FfmpegLoader
   {
-    private const string ZERANOE_WEB = "http://ffmpeg.zeranoe.com/builds/", SUBFOLDER = "vp9 files";
+    private const string ZERANOE_WEB = "http://ffmpeg.zeranoe.com/builds/";
 
     public string FolderPath { get; private set; }
 
     public FfmpegLoader()
     {
-      string exeLocation = Assembly.GetExecutingAssembly().Location;
-      FolderPath = exeLocation;
+      FolderPath = @"C:\Program Files\FFMPEG Compact\";
     }
 
-    public bool CheckFfmpeg()
-    {
-      Executer execute = new Executer("where");
-      string result = execute.Execute("/F " + Executer.FFMPEG);
-      return result.Contains('\\');
-    }
-
-    public bool CheckFontConfig()
-    {
-      return true;
-    }
-
-    public async Task Update()
+    public async Task Install()
     {
       Console.WriteLine("Getting link to latest ffmpeg");
       string link = await GetLinkFromWebPage();
@@ -51,16 +36,19 @@ namespace VpxEncode
         {
           SevenZipArchiveEntry f = archive.Entries.First(x => x.Key.Contains(file));
           string name = f.Key.Substring(f.Key.LastIndexOf('/') + 1);
-          CheckDirAndCreate(FolderPath + SUBFOLDER);
+          CheckDirAndCreate(FolderPath);
           using (Stream entryStream = f.OpenEntryStream())
-          using (FileStream fileStream = File.OpenWrite(Path.Combine(FolderPath, SUBFOLDER, name)))
+          using (FileStream fileStream = File.OpenWrite(Path.Combine(FolderPath, name)))
             await entryStream.CopyToAsync(fileStream);
         }
       }
       Console.WriteLine("Update enviroment");
-      UpdateEnvironment();
+      SetEnvironment();
       Console.WriteLine("Set fontconfig");
-      FontConfig();
+      SetFontConfig();
+      Console.WriteLine("Copying vp9.exe to " + FolderPath);
+      string location = System.Reflection.Assembly.GetEntryAssembly().Location;
+      File.Copy(location, Path.Combine(FolderPath, Path.GetFileName(location)));
     }
 
     private async Task<String> GetLinkFromWebPage()
@@ -104,7 +92,7 @@ namespace VpxEncode
       }
     }
 
-    private void UpdateEnvironment()
+    private void SetEnvironment()
     {
       StringBuilder current = new StringBuilder(Environment.GetEnvironmentVariable("Path", EnvironmentVariableTarget.Machine));
       if (!current.Contains(FolderPath))
@@ -117,7 +105,7 @@ namespace VpxEncode
       }
     }
 
-    private void FontConfig()
+    private void SetFontConfig()
     {
       string fontDir = FolderPath + "fonts",
              fontFile = fontDir + "\\fonts.conf",
