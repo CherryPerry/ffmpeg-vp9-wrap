@@ -480,7 +480,7 @@ namespace VpxEncode
       string concatFile = String.Format("concat_{0}.txt", time);
       File.WriteAllText(concatFile,
         String.Format("file '{0}'\r\nfile '{1}'", previewWebm, filePath),
-        Encoding.ASCII);
+        Encoding.Default);
       args = String.Format("-f concat -i \"{0}\" -c copy \"{1}\"", concatFile, concatedWebm);
       ExecuteFFMPEG(args, pu);
 
