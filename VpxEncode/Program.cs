@@ -454,25 +454,37 @@ namespace VpxEncode
       else
         previewSource = GetFullPath(ArgList.Get(Arg.PREVIEW_SOURCE).AsString());
       string previewTiming = ArgList.Get(Arg.PREVIEW).AsString();
-
-      // same scale
-      string scale = "";
-      Regex regex = new Regex(@".*Video:.*\,\s(\d+x\d+).*");
-      Match match = regex.Match(new Executer().Execute('"' + filePath + '"'));
-      if (match.Success)
-      {
-        scale = match.Groups[1].Value.Trim();
-        scale = "-vf scale=" + scale;
-      }
+      bool previewSourceIsWebm = previewSource.EndsWith("webm");
 
       // preview.webm
       long time = DateTime.Now.ToFileTimeUtc();
       string previewWebm = GetFolder(filePath) + "\\preview_" + time.ToString() + ".webm";
-      string args = String.Format("-ss {0} -i \"{1}\" -c:v vp9 -b:v 0 -crf 4 -vframes 1 -quality best -an -sn {3} \"{2}\"",
+      string args;
+      if (previewSourceIsWebm)
+      {
+        args = String.Format("-ss {0} -i \"{1}\" -c:v copy -vframes 1 -an -sn \"{2}\"",
+        previewTiming,
+        previewSource,
+        previewWebm);
+      }
+      else
+      {
+        // same scale
+        string scale = "";
+        Regex regex = new Regex(@".*Video:.*\,\s(\d+x\d+).*");
+        Match match = regex.Match(new Executer(Executer.FFPROBE).Execute("-hide_banner \"" + filePath + '"'));
+        if (match.Success)
+        {
+          scale = match.Groups[1].Value.Trim();
+          scale = "-vf scale=" + scale;
+        }
+
+        args = String.Format("-ss {0} -i \"{1}\" -c:v vp9 -b:v 0 -crf 4 -vframes 1 -quality best -an -sn {3} \"{2}\"",
         previewTiming,
         previewSource,
         previewWebm,
         scale);
+      }
       ExecuteFFMPEG(args, pu);
 
       // concat
