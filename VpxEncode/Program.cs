@@ -417,8 +417,9 @@ namespace VpxEncode
 
     static string GetEndTime(string filePath)
     {
-      Regex regex = new Regex(@".*Duration:(\s\d{2,}:\d{2}:\d{2}.\d{1,3}).*");
-      Match match = regex.Match(new Executer(Executer.FFPROBE).Execute('"' + filePath + '"'));
+      Regex regex = new Regex(@".*Duration:\s(\d{2,}:\d{2}:\d{2}.\d{1,3}).*");
+      string s = new Executer(Executer.FFPROBE).Execute("-hide_banner \"" + filePath + '"');
+      Match match = regex.Match(s);
       if (match.Success)
       {
         string value = match.Groups[1].Value.Trim();
@@ -460,7 +461,8 @@ namespace VpxEncode
       long time = DateTime.Now.ToFileTimeUtc();
       string previewWebm = GetFolder(filePath) + "\\preview_" + time.ToString() + ".webm";
       string args;
-      if (previewSourceIsWebm)
+      // TODO: webm copy does not work, increases time of video by 5 second!
+      if (previewSourceIsWebm && false)
       {
         args = String.Format("-ss {0} -i \"{1}\" -c:v copy -vframes 1 -an -sn \"{2}\"",
         previewTiming,
@@ -499,7 +501,7 @@ namespace VpxEncode
       // Audio
       string dur = GetEndTime(previewWebm);
       if (dur == null)
-        dur = "0.04";
+        dur = "00:00.042";
       args = String.Format("-y -i \"{0}\" -itsoffset {3} -i \"{1}\" -map 0:0 -map 1:1 -c copy \"{2}\"", concatedWebm, filePath, output, dur);
       ExecuteFFMPEG(args, pu);
 
