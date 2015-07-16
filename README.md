@@ -4,9 +4,7 @@
 ####Скачать
 [СКАЧАТЬ БЕСПЛАТНО БЕЗ СМС]
 
-####Запуск
-Перед запуском установи ffmpeg, добавь путь к самому vp9.exe (для удобства) и к ffmpeg.exe, ffprobe.exe (для работы приложения) в Path, настрой фонтконфиг. Можешь воспользоваться [установщиком] или [гайдом].
-**ИЛИ**
+####Подготовка
 Запусти скачанный vp9.exe из консоли, запущенной с правами Админстатора, с ключом -install.
 ```
 vp9 -install
@@ -18,14 +16,16 @@ vp9 -install
 - Настраивает fontconfig для хардсаба (задает системные переменные и создает fonts.conf)
 - Копирует vp9.exe в папку установки
 
-Не забудь поставить .net framework 4.5!
+Алтернативный способ для параноиков: перед запуском установи ffmpeg, добавь путь к самому vp9.exe (для удобства) и к ffmpeg.exe, ffprobe.exe (для работы приложения) в Path, настрой фонтконфиг. Можешь воспользоваться [гайдом].
+
+**Не забудь поставить .NET Framework 4.5**!
 
 ####Кодирование
 Самый простой способ:
 ```
 vp9 -file "1.mkv" -subs "1.ass" -ss 01:00.000 -to 01:30.000
 ```
-2 pass, quality good, opus 80K, 960x540.
+2 pass, quality good, opus 80K, 960x540 (если видео широкоформатное).
 
 Для списка команд (вызов без аргументов):
 ```
@@ -44,6 +44,14 @@ vp9
 vp9 -file 1.mkv -t тайминги.txt
 ```
 Для того, чтобы сделать конкретно какую-то сторчку из файла, добавь -ti № строки (или строк через запятую), считая от 0.
+
+#####-scale
+Для разрешения отличного от 960x540:
+```
+vp9 -file 1.mkv -scale -1:720
+```
+Так же можно использовать значения, следующего вида: 1280:-1; 1280:720; no (если скейлить изображение не нужно).
+
 #####-alimit и -limit
 limit для указания лимита (10240KB по умолчанию):
 ```
@@ -77,6 +85,25 @@ vp9 -youtube https://youtube...
 vp9 -file "1.mkv" -crop
 ```
 
+#####-name
+Для задания префикса выходного файла:
+```
+vp9 -file "1.mkv" -name NEW_WEBM_
+```
+Получится файл: NEW_WEBM_[здесь числа, обозначающие время начала кодирования].webm
+
+#####-af
+Для использования внешнего звукового файла:
+```
+vp9 -file "1.mkv" -af "1.ANCROD.ac3"
+```
+
+#####-ma
+Смена аудиодорожки (эквиваленит -map 0:x при кодировании звука):
+```
+vp9 -file "1.mkv" -ma 1
+```
+
 ####Сторонние библиотеки
 - [YoutubeExtractor] MIT License
 - [Json.NET] MIT license
@@ -84,7 +111,6 @@ vp9 -file "1.mkv" -crop
 - [SharpCompress] Microsoft Public License
 
 [СКАЧАТЬ БЕСПЛАТНО БЕЗ СМС]:https://github.com/CherryPerry/ffmpeg-vp9-wrap/releases
-[установщиком]:https://github.com/CherryPerry/zeranoe-ffmpeg-update-csharp
 [гайдом]:https://github.com/pituz/webm-thread/wiki/installing-ffmpeg-on-windows
 [YoutubeExtractor]:https://github.com/flagbug/YoutubeExtractor
 [Json.NET]:http://www.newtonsoft.com/json
