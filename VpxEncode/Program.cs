@@ -273,15 +273,15 @@ namespace VpxEncode
 
     static string Encode(long i, string file, string subs, TimeSpan start, TimeSpan end, int sizeLimit)
     {
-      // subs = *.ass
-      if (subs != null && new Regex(@"\*\..+").IsMatch(subs))
+      // subs = .ass
+      if (subs != null && new Regex(@"\..+").IsMatch(subs))
       {
         string fileNoPath = file.Substring(0, file.LastIndexOf('.'));
         subs = fileNoPath + subs.Substring(subs.LastIndexOf('.'));
       }
 
-      // subs = *
-      if (subs == "*")
+      // subs = same
+      if (subs == "same")
         subs = file;
 
       bool subsWereCopied = false;
