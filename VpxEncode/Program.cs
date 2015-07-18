@@ -322,8 +322,9 @@ namespace VpxEncode
       string audioFile = ArgList.Get(Arg.AUDIO_FILE) ? GetFullPath(ArgList.Get(Arg.AUDIO_FILE).AsString()) : file;
 
       // Encode audio
-      ExecuteFFMPEG(String.Format("-y -ss {1} -i \"{0}\" {5} -ac 2 -c:a opus -b:a {6}K -vbr on -vn -sn -t {2} {4} \"{3}\"",
-        audioFile, startString, timeLengthString, oggPath, ArgList.Get(Arg.OTHER_AUDIO).AsString(), mapAudio, opusRate), pu);
+      string args = String.Format("-hide_banner -y -ss {1} -i \"{0}\" {5} -ac 2 -c:a opus -b:a {6}K -vbr on -vn -sn -t {2} {4} \"{3}\"",
+        audioFile, startString, timeLengthString, oggPath, ArgList.Get(Arg.OTHER_AUDIO).AsString(), mapAudio, opusRate);
+      ExecuteFFMPEG(args, pu);
 
       // VideoFilter
       const string vfDefault = "-vf \"";
@@ -361,16 +362,16 @@ namespace VpxEncode
       StringBuilder otherVideo = new StringBuilder();
       otherVideo.AppendForPrev(ArgList.Get(Arg.OTHER_VIDEO).AsString()).AppendIfPrev(" ");
 
-      string args = String.Format("-y -ss {3} -i \"{0}\" -c:v vp9 {1} -tile-columns 1 -frame-parallel 1 -speed 4 -threads 4 -an {2} -t {4} -sn {7} -lag-in-frames 25 -pass 1 -auto-alt-ref 1 -passlogfile temp_{5} \"{6}\"",
+      args = String.Format("-hide_banner -y -ss {3} -i \"{0}\" -c:v vp9 {1} -tile-columns 1 -frame-parallel 1 -speed 4 -threads 4 -an {2} -t {4} -sn {7} -lag-in-frames 25 -pass 1 -auto-alt-ref 1 -passlogfile temp_{5} \"{6}\"",
                       file, bitrateString, vf, startString, timeLengthString, code, webmPath, otherVideo);
       ExecuteFFMPEG(args, pu);
 
-      args = String.Format("-y -ss {3} -i \"{0}\" -c:v vp9 {1} -tile-columns 1 -frame-parallel 1 -speed 1 -threads 4 -an {2} -t {4} -sn {7} -lag-in-frames 25 -pass 2 -auto-alt-ref 1 -quality {8} -passlogfile temp_{5} \"{6}\"",
+      args = String.Format("-hide_banner -y -ss {3} -i \"{0}\" -c:v vp9 {1} -tile-columns 1 -frame-parallel 1 -speed 1 -threads 4 -an {2} -t {4} -sn {7} -lag-in-frames 25 -pass 2 -auto-alt-ref 1 -quality {8} -passlogfile temp_{5} \"{6}\"",
               file, bitrateString, vf, startString, timeLengthString, code, webmPath, otherVideo, quality);
       ExecuteFFMPEG(args, pu);
 
       // Concat
-      args = String.Format("-y -i \"{0}\" -i \"{1}\" -c copy -metadata title=\"{3} encoded by github.com/CherryPerry/ffmpeg-vp9-wrap\" \"{2}\"", webmPath, oggPath, finalPath, Path.GetFileNameWithoutExtension(file));
+      args = String.Format("-hide_banner -y -i \"{0}\" -i \"{1}\" -c copy -metadata title=\"{3} encoded by github.com/CherryPerry/ffmpeg-vp9-wrap\" \"{2}\"", webmPath, oggPath, finalPath, Path.GetFileNameWithoutExtension(file));
       ExecuteFFMPEG(args, pu);
 
       // Delete
@@ -464,7 +465,7 @@ namespace VpxEncode
       // TODO: webm copy does not work, increases time of video by 5 second!
       if (previewSourceIsWebm && false)
       {
-        args = String.Format("-ss {0} -i \"{1}\" -c:v copy -vframes 1 -an -sn \"{2}\"",
+        args = String.Format("-hide_banner -ss {0} -i \"{1}\" -c:v copy -vframes 1 -an -sn \"{2}\"",
         previewTiming,
         previewSource,
         previewWebm);
@@ -481,7 +482,7 @@ namespace VpxEncode
           scale = "-vf scale=" + scale;
         }
 
-        args = String.Format("-ss {0} -i \"{1}\" -c:v vp9 -b:v 0 -crf 4 -vframes 1 -quality best -an -sn {3} \"{2}\"",
+        args = String.Format("-hide_banner -ss {0} -i \"{1}\" -c:v vp9 -b:v 0 -crf 4 -vframes 1 -quality best -an -sn {3} \"{2}\"",
         previewTiming,
         previewSource,
         previewWebm,
@@ -495,14 +496,14 @@ namespace VpxEncode
       File.WriteAllText(concatFile,
         String.Format("file '{0}'\r\nfile '{1}'", previewWebm, filePath),
         Encoding.Default);
-      args = String.Format("-f concat -i \"{0}\" -c copy \"{1}\"", concatFile, concatedWebm);
+      args = String.Format("-hide_banner -f concat -i \"{0}\" -c copy \"{1}\"", concatFile, concatedWebm);
       ExecuteFFMPEG(args, pu);
 
       // Audio
       string dur = GetEndTime(previewWebm);
       if (dur == null)
         dur = "00:00.042";
-      args = String.Format("-y -i \"{0}\" -itsoffset {3} -i \"{1}\" -map 0:0 -map 1:1 -c copy \"{2}\"", concatedWebm, filePath, output, dur);
+      args = String.Format("-hide_banner -y -i \"{0}\" -itsoffset {3} -i \"{1}\" -map 0:0 -map 1:1 -c copy \"{2}\"", concatedWebm, filePath, output, dur);
       ExecuteFFMPEG(args, pu);
 
       // Delete

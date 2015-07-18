@@ -23,7 +23,7 @@ namespace VpxEncode
 
     public void Generate(bool toFile)
     {
-      output = new Executer().Execute(String.Format("\"{0}\"", File));
+      output = new Executer().Execute(String.Format("-hide_banner \"{0}\"", File));
       GetTimings(toFile);
     }
 
