@@ -29,7 +29,7 @@ namespace VpxEncode
                         AUDIO_FILE = "af", AUTOLIMIT = "alimit",
                         AUTOLIMIT_DELTA = "alimitD", AUTOLIMIT_HISTORY = "alimitS",
                         YOUTUBE = "youtube", CROP = "crop",
-                        INSTALL = "install";
+                        INSTALL = "install", CRF_MODE = "crf";
   }
 
   static class ArgList
@@ -61,7 +61,8 @@ namespace VpxEncode
         { Arg.PREVIEW_SOURCE, new Arg(Arg.PREVIEW_SOURCE, null, "{string} файл для превью, если нет, то берется из -file") },
         { Arg.YOUTUBE, new Arg(Arg.YOUTUBE, null, "{string} ссылка на видео с ютуба") },
         { Arg.CROP, new Arg(Arg.CROP, null, "обрезка черных полос", false) },
-        { Arg.INSTALL, new Arg(Arg.INSTALL, null, "установка ffmpeg в систему (только при запуске от имени Администратора)", false) }
+        { Arg.INSTALL, new Arg(Arg.INSTALL, null, "установка ffmpeg в систему (только при запуске от имени Администратора)", false) },
+        { Arg.CRF_MODE, new Arg(Arg.CRF_MODE, null, "{0-63} режим качества (crf) для коротких webm (alimit и limit не действуют)") },
       };
 
     public static void Parse(string[] args)
@@ -362,13 +363,24 @@ namespace VpxEncode
       StringBuilder otherVideo = new StringBuilder();
       otherVideo.AppendForPrev(ArgList.Get(Arg.OTHER_VIDEO).AsString()).AppendIfPrev(" ");
 
-      args = String.Format("-hide_banner -y -ss {3} -i \"{0}\" -c:v vp9 {1} -tile-columns 1 -frame-parallel 1 -speed 4 -threads 4 -an {2} -t {4} -sn {7} -lag-in-frames 25 -pass 1 -auto-alt-ref 1 -passlogfile temp_{5} \"{6}\"",
-                      file, bitrateString, vf, startString, timeLengthString, code, webmPath, otherVideo);
-      ExecuteFFMPEG(args, pu);
+      ushort crf = ushort.MaxValue;
+      if (ArgList.Get(Arg.CRF_MODE))
+        try { crf = ushort.Parse(ArgList.Get(Arg.CRF_MODE).Value); if (crf > 63) crf = ushort.MaxValue; }
+        catch { }
 
-      args = String.Format("-hide_banner -y -ss {3} -i \"{0}\" -c:v vp9 {1} -tile-columns 1 -frame-parallel 1 -speed 1 -threads 4 -an {2} -t {4} -sn {7} -lag-in-frames 25 -pass 2 -auto-alt-ref 1 -quality {8} -passlogfile temp_{5} \"{6}\"",
-              file, bitrateString, vf, startString, timeLengthString, code, webmPath, otherVideo, quality);
-      ExecuteFFMPEG(args, pu);
+      // If CRF_MODE
+      if (crf != ushort.MaxValue)
+        EncodeWithCRF(file, vf.ToString(), startString, timeLengthString, crf, code, webmPath, quality, pu);
+      else
+      {
+        args = String.Format("-hide_banner -y -ss {3} -i \"{0}\" -c:v vp9 {1} -tile-columns 1 -frame-parallel 1 -speed 4 -threads 4 -an {2} -t {4} -sn {7} -lag-in-frames 25 -pass 1 -auto-alt-ref 1 -passlogfile temp_{5} \"{6}\"",
+                        file, bitrateString, vf, startString, timeLengthString, code, webmPath, otherVideo);
+        ExecuteFFMPEG(args, pu);
+
+        args = String.Format("-hide_banner -y -ss {3} -i \"{0}\" -c:v vp9 {1} -tile-columns 1 -frame-parallel 1 -speed 1 -threads 4 -an {2} -t {4} -sn {7} -lag-in-frames 25 -pass 2 -auto-alt-ref 1 -quality {8} -passlogfile temp_{5} \"{6}\"",
+                file, bitrateString, vf, startString, timeLengthString, code, webmPath, otherVideo, quality);
+        ExecuteFFMPEG(args, pu);
+      }
 
       // Concat
       args = String.Format("-hide_banner -y -i \"{0}\" -i \"{1}\" -c copy -metadata title=\"{3} encoded by github.com/CherryPerry/ffmpeg-vp9-wrap\" \"{2}\"", webmPath, oggPath, finalPath, Path.GetFileNameWithoutExtension(file));
@@ -384,6 +396,17 @@ namespace VpxEncode
       sp.Destroy(pu);
 
       return finalPath;
+    }
+
+    static void EncodeWithCRF(string file, string vf, string startString, string timeLengthString, ushort crf, string code, string webmPath, string quality, ProcessingUnit pu)
+    {
+      string args = String.Format("-hide_banner -y -ss {2} -i \"{0}\" -c:v vp9 {1} -crf {6} -b:v 0 -tile-columns 1 -frame-parallel 1 -speed 4 -threads 4 -an -t {3} -sn -lag-in-frames 25 -pass 1 -auto-alt-ref 1 -passlogfile temp_{4} \"{5}\"",
+                      file, vf, startString, timeLengthString, code, webmPath, crf);
+      ExecuteFFMPEG(args, pu);
+
+      args = String.Format("-hide_banner -y -ss {2} -i \"{0}\" -c:v vp9 {1} -crf {6} -b:v 0 -tile-columns 1 -frame-parallel 1 -speed 1 -threads 4 -an -t {3} -sn -quality good -lag-in-frames 25 -pass 2 -auto-alt-ref 1 -passlogfile temp_{4} \"{5}\"",
+                      file, vf, startString, timeLengthString, code, webmPath, crf);
+      ExecuteFFMPEG(args, pu);
     }
 
     static string GetCrop(string file, string start, string t)
