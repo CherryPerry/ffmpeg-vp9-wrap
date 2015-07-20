@@ -29,7 +29,8 @@ namespace VpxEncode
                         AUDIO_FILE = "af", AUTOLIMIT = "alimit",
                         AUTOLIMIT_DELTA = "alimitD", AUTOLIMIT_HISTORY = "alimitS",
                         YOUTUBE = "youtube", CROP = "crop",
-                        INSTALL = "install", CRF_MODE = "crf";
+                        INSTALL = "install", CRF_MODE = "crf",
+                        UPSCALE = "upscale";
   }
 
   static class ArgList
@@ -63,6 +64,7 @@ namespace VpxEncode
         { Arg.CROP, new Arg(Arg.CROP, null, "обрезка черных полос", false) },
         { Arg.INSTALL, new Arg(Arg.INSTALL, null, "установка ffmpeg в систему (только при запуске от имени Администратора)", false) },
         { Arg.CRF_MODE, new Arg(Arg.CRF_MODE, null, "{0-63} режим качества (crf) для коротких webm (alimit и limit не действуют)") },
+		    { Arg.UPSCALE, new Arg(Arg.UPSCALE, null, "разрешить апскейл видео", false) }
       };
 
     public static void Parse(string[] args)
@@ -327,6 +329,24 @@ namespace VpxEncode
         audioFile, startString, timeLengthString, oggPath, ArgList.Get(Arg.OTHER_AUDIO).AsString(), mapAudio, opusRate);
       ExecuteFFMPEG(args, pu);
 
+      // No upscale check
+      string scale = ArgList.Get(Arg.SCALE).AsString();
+      if (scale != "no" && !ArgList.Get(Arg.UPSCALE))
+      {
+        string oScale = GetScale(file);
+        string[] scaleSplit = oScale.Split('x');
+        if (scaleSplit.Length == 2)
+        {
+          int oWidth = int.Parse(scaleSplit[0]);
+          int oHeight = int.Parse(scaleSplit[1]);
+          scaleSplit = scale.Split(':');
+          int width = int.Parse(scaleSplit[0]);
+          int height = int.Parse(scaleSplit[1]);
+          if (width > oWidth || height > oHeight)
+            scale = "no";
+        }
+      }
+
       // VideoFilter
       const string vfDefault = "-vf \"";
       StringBuilder vf = new StringBuilder(vfDefault);
@@ -338,7 +358,6 @@ namespace VpxEncode
           vf.AppendIfPrev(",").AppendForPrev(crop);
         pu.Write("CROP: " + crop);
       }
-      string scale = ArgList.Get(Arg.SCALE).AsString();
       if (scale != "no")
         vf.AppendIfPrev(",").AppendForPrev(String.Format("scale={0}", scale));
       if (subs != null)
@@ -495,15 +514,12 @@ namespace VpxEncode
       }
       else
       {
-        // same scale
-        string scale = "";
-        Regex regex = new Regex(@".*Video:.*\,\s(\d+x\d+).*");
-        Match match = regex.Match(new Executer(Executer.FFPROBE).Execute("-hide_banner \"" + filePath + '"'));
-        if (match.Success)
-        {
-          scale = match.Groups[1].Value.Trim();
+        // Same scale	
+        string scale = GetScale(filePath);
+        if (scale == null)
+          scale = "";
+        else
           scale = "-vf scale=" + scale;
-        }
 
         args = String.Format("-hide_banner -ss {0} -i \"{1}\" -c:v vp9 -b:v 0 -crf 4 -vframes 1 -quality best -an -sn {3} \"{2}\"",
         previewTiming,
@@ -535,6 +551,15 @@ namespace VpxEncode
       File.Delete(concatedWebm);
 
       sp.Destroy(pu);
+    }
+
+    static string GetScale(string filePath)
+    {
+      Regex regex = new Regex(@".*Video:.*\,\s(\d+x\d+).*");
+      Match match = regex.Match(new Executer(Executer.FFPROBE).Execute("-hide_banner \"" + filePath + '"'));
+      if (match.Success)
+        return match.Groups[1].Value.Trim();
+      return null;
     }
 
     static void ExecuteFFMPEG(string args, ProcessingUnit pu)
