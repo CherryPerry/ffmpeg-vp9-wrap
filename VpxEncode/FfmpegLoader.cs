@@ -61,7 +61,7 @@ namespace VpxEncode
         doc.Load(s);
         HtmlNodeCollection collection = doc.DocumentNode.SelectNodes("/html/body/div[@id='builds-page']/div[@class='grid-460']/a[@class='latest']");
         int bits = Environment.Is64BitProcess ? 64 : 32;
-        Regex regex = new Regex(String.Format("Download FFmpeg git-\\S+ {0}-bit Static", bits));
+        Regex regex = new Regex($"Download FFmpeg git-\\S+ {bits}-bit Static");
         foreach (var item in collection)
         {
           if (regex.IsMatch(item.InnerText))

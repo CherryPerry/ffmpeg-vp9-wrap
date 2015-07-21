@@ -14,21 +14,10 @@ namespace VpxEncode.Output
       Token = new Random().Next();
     }
 
-    public void Write(string line)
-    {
-      RaiseEvent(line);
-    }
+    public void Write(string line) => RaiseEvent(line);
 
-    public void DataReceived(object sender, DataReceivedEventArgs data)
-    {
-      RaiseEvent(data.Data);
-    }
+    public void DataReceived(object sender, DataReceivedEventArgs data) => RaiseEvent(data.Data);
 
-    private void RaiseEvent(string text)
-    {
-      var handler = OnDataReceived;
-      if (handler != null)
-        handler(this, new ProcessingUnitDataReceivedEventArgs(Token, text));
-    }
+    private void RaiseEvent(string text) => OnDataReceived?.Invoke(this, new ProcessingUnitDataReceivedEventArgs(Token, text));
   }
 }

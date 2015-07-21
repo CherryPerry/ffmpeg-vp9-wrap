@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -23,7 +22,7 @@ namespace VpxEncode
 
     public void Generate(bool toFile)
     {
-      output = new Executer().Execute(String.Format("-hide_banner \"{0}\"", File));
+      output = new Executer().Execute($"-hide_banner \"{File}\"");
       GetTimings(toFile);
     }
 
@@ -36,7 +35,7 @@ namespace VpxEncode
       for (int i = 0; i < res.Count; i++)
       {
         Match r = res[i];
-        string timing = String.Format("{0} {1}", r.Groups[1], r.Groups[2]);
+        string timing = $"{r.Groups[1]} {r.Groups[2]}";
         sb.AppendIfPrev("\r\n").AppendForPrev(timing);
         asList.AddLast(timing);
       }

@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 
 namespace VpxEncode
@@ -12,18 +11,11 @@ namespace VpxEncode
   {
     struct Point
     {
-      public int Target { get; set; }
-      public int Current { get; set; }
-
-      public override string ToString()
-      {
-        return String.Format("{0} -> {1}", Target, Current);
-      }
-
-      public override int GetHashCode()
-      {
-        return Target ^ Current;
-      }
+      public int Target;
+      public int Current;
+      public Point(int target, int current) { Target = target; Current = current; }
+      public override string ToString() => $"{Target} -> {Current}";
+      public override int GetHashCode() => Target ^ Current;
     }
 
     private int TargetLimit;
@@ -41,7 +33,7 @@ namespace VpxEncode
     {
       if (methodInvalid)
         return -1;
-      return LinearGetTarget(); ;
+      return LinearGetTarget();
     }
 
     private int LinearGetTarget()
@@ -76,10 +68,7 @@ namespace VpxEncode
 
     public void AddPoint(int target, int current)
     {
-#if DEBUG
-      Debug.WriteLine("{0}\t{1}", target, current);
-#endif
-      methodInvalid = !(History.Add(current) && Targets.Add(new Point { Current = current, Target = target }));
+      methodInvalid = !(History.Add(current) && Targets.Add(new Point(current, target)));
     }
   }
 }

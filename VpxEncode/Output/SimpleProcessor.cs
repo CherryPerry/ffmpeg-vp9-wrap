@@ -6,11 +6,10 @@ namespace VpxEncode.Output
   {
     protected override void pu_OnDataReceived(object sender, ProcessingUnitDataReceivedEventArgs e)
     {
-      string data = e.Data;
-      if (data != null && data.Length == Console.WindowWidth)
-        Console.Write(data);
+      if (e.Data?.Length == Console.WindowWidth)
+        Console.Write(e.Data);
       else
-        Console.WriteLine(data);
+        Console.WriteLine(e.Data);
     }
   }
 }

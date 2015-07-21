@@ -26,11 +26,7 @@ namespace VpxEncode
       proc.StartInfo.UseShellExecute = false;
       proc.StartInfo.RedirectStandardOutput = true;
       proc.StartInfo.RedirectStandardError = true;
-      DataReceivedEventHandler handler = (sender, data) =>
-      {
-        if (data.Data != null)
-          ProcessString(data.Data);
-      };
+      DataReceivedEventHandler handler = (sender, data) => ProcessString(data.Data);
       proc.ErrorDataReceived += handler;
       proc.OutputDataReceived += handler;
       proc.Start();
@@ -44,7 +40,7 @@ namespace VpxEncode
 
     void ProcessString(string str)
     {
-      if (str.Length == Console.WindowWidth)
+      if (str?.Length == Console.WindowWidth)
         Console.Write(str);
       else
         Console.WriteLine(str);

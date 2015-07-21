@@ -13,10 +13,7 @@ namespace VpxEncode
 
     string[] Content;
 
-    public static bool IsAcceptable(string path)
-    {
-      return path.EndsWith(".ass");
-    }
+    public static bool IsAcceptable(string path) => path.EndsWith(".ass");
 
     public SubStationAlpha(string path)
     {
@@ -61,7 +58,7 @@ namespace VpxEncode
               if (k != split.Length - 1)
                 sb.Append(',');
             }
-            Console.WriteLine("{0} -> {1}", Content[i], sb.ToString());
+            Console.WriteLine($"{Content[i]} -> {sb.ToString()}");
             Content[i] = sb.ToString();
           }
           continue;
@@ -71,9 +68,6 @@ namespace VpxEncode
       }
     }
 
-    void Save(string path)
-    {
-      File.WriteAllLines(path, Content);
-    }
+    void Save(string path) => File.WriteAllLines(path, Content);
   }
 }
