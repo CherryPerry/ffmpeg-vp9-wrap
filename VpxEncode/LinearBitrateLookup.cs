@@ -13,7 +13,7 @@ namespace VpxEncode
     {
       public int Target;
       public int Current;
-      public Point(int target, int current) { Target = target; Current = current; }
+      public Point(int current, int target) { Target = target; Current = current; }
       public override string ToString() => $"{Target} -> {Current}";
       public override int GetHashCode() => Target ^ Current;
     }

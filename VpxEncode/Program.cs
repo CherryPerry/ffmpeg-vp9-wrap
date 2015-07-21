@@ -42,7 +42,7 @@ namespace VpxEncode
       [Arg.TIMINGS] = new Arg(Arg.TIMINGS, null, "{string} файл таймингов ({00:00.000|00:00:00.000|0} {00:00.000|00:00:00.000|0}\\n)"),
       [Arg.START_TIME] = new Arg(Arg.START_TIME, "0", "{00:00.000|00:00:00.000|0} начало отрезка"),
       [Arg.END_TIME] = new Arg(Arg.END_TIME, null, "{00:00.000|00:00:00.000|0} конец отрезка"),
-      [Arg.MAP_AUDIO] = new Arg(Arg.MAP_AUDIO, null, "{int} для смены аудиодорожки (эквивалент -map 0:{int})"),
+      [Arg.MAP_AUDIO] = new Arg(Arg.MAP_AUDIO, null, "{int} для смены аудиодорожки (эквивалент -map 0:a:{int})"),
       [Arg.SCALE] = new Arg(Arg.SCALE, "960:-1", "no|{int:int} скейл изображения (default: 960:-1)"),
       [Arg.OTHER_VIDEO] = new Arg(Arg.OTHER_VIDEO, string.Empty, "{string} доп. параметры выходного файла видео \"-qmin 30\""),
       [Arg.OTHER_AUDIO] = new Arg(Arg.OTHER_AUDIO, string.Empty, "{string} доп. параметры выходного файла аудио \"-af=volume=3\""),
@@ -53,7 +53,7 @@ namespace VpxEncode
       [Arg.TIMINGS_INDEX] = new Arg(Arg.TIMINGS_INDEX, null, "индекс одного или нескольких (через запятую) файлов для обработки при работе с файлом таймингов"),
       [Arg.FIX_SUBS] = new Arg(Arg.FIX_SUBS, null, "замена шрифтов в ass субтитрах на Arial (если ffmpeg не находит шрифт)", false),
       [Arg.SUBS_INDEX] = new Arg(Arg.SUBS_INDEX, null, "индекс субтитров, если в контейнере", ":si={0}"),
-      [Arg.AUDIO_FILE] = new Arg(Arg.AUDIO_FILE, null, "{string} внешняя аудиодорожка", "-map 0:{0}"),
+      [Arg.AUDIO_FILE] = new Arg(Arg.AUDIO_FILE, null, "{string} внешняя аудиодорожка"),
       [Arg.GENERATE_TIMING] = new Arg(Arg.GENERATE_TIMING, null, "сгенерировать timings.txt из ffprobe", false),
       [Arg.AUTOLIMIT] = new Arg(Arg.AUTOLIMIT, null, "подогнать под лимит", false),
       [Arg.AUTOLIMIT_DELTA] = new Arg(Arg.AUTOLIMIT_DELTA, "240", "{int} погрешность автоподгона в KB (default: 240)"),
@@ -230,7 +230,7 @@ namespace VpxEncode
         {
           TimeSpan start = ArgList.Get(Arg.START_TIME).AsTimeSpan(), end = ArgList.Get(Arg.END_TIME).AsTimeSpan();
           if (ArgList.Get(Arg.AUTOLIMIT))
-            BitrateLookupEncode((newTarget) => { return Encode(DateTime.Now.ToFileTimeUtc(), filePath, subPath, start, end, newTarget); });
+            BitrateLookupEncode((newTarget) => Encode(DateTime.Now.ToFileTimeUtc(), filePath, subPath, start, end, newTarget));
           else
             Encode(DateTime.Now.ToFileTimeUtc(), filePath, subPath, start, end, ArgList.Get(Arg.LIMIT).AsInt());
         }
@@ -246,19 +246,14 @@ namespace VpxEncode
       LinearBitrateLookup bl = new LinearBitrateLookup(limit - delta / 2);
 
       string history = ArgList.Get(Arg.AUTOLIMIT_HISTORY).AsString();
-      if (!String.IsNullOrWhiteSpace(history))
-      {
-        string[] historySplit = history.Split(',');
-        foreach (string split in historySplit)
+      if (!string.IsNullOrWhiteSpace(history))
+        foreach (string split in history.Split(','))
         {
           string[] values = split.Split(':');
           if (values.Length == 2)
-          {
             try { bl.AddPoint(int.Parse(values[0]), int.Parse(values[1])); }
             finally { }
-          }
         }
-      }
 
       int size = 0;
       while (!(limit - size < delta && size < limit))
@@ -316,7 +311,7 @@ namespace VpxEncode
       ProcessingUnit pu = sp.CreateOne();
 
       // Audio settings
-      string mapAudio = ArgList.Get(Arg.MAP_AUDIO) ? $"-map 0:{ArgList.Get(Arg.MAP_AUDIO).AsInt()}" : string.Empty;
+      string mapAudio = ArgList.Get(Arg.MAP_AUDIO) ? $"-map 0:a:{ArgList.Get(Arg.MAP_AUDIO).AsInt()}" : string.Empty;
       int opusRate = ArgList.Get(Arg.OPUS_RATE).AsInt();
       string audioFile = ArgList.Get(Arg.AUDIO_FILE) ? GetFullPath(ArgList.Get(Arg.AUDIO_FILE).AsString()) : file;
 
@@ -520,7 +515,7 @@ namespace VpxEncode
       string dur = GetEndTime(previewWebm);
       if (dur == null)
         dur = "00:00.042";
-      args = $"-hide_banner -y -i \"{concatedWebm}\" -itsoffset {dur} -i \"{filePath}\" -map 0:0 -map 1:1 -c copy \"{output}\"";
+      args = $"-hide_banner -y -i \"{concatedWebm}\" -itsoffset {dur} -i \"{filePath}\" -map 0:v -map 1:a -c copy \"{output}\"";
       ExecuteFFMPEG(args, pu);
 
       // Delete
