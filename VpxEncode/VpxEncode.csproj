@@ -80,6 +80,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Cache.cs" />
     <Compile Include="Executer.cs" />
     <Compile Include="FfmpegLoader.cs" />
     <Compile Include="LinearBitrateLookup.cs" />

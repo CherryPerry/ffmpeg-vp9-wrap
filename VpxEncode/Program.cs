@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Newtonsoft.Json.Linq;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
@@ -270,7 +271,7 @@ namespace VpxEncode
     static string Encode(long i, string file, string subs, TimeSpan start, TimeSpan end, int sizeLimit)
     {
       // subs = .ass
-      if (subs != null && new Regex(@"\..+").IsMatch(subs))
+      if (subs != null && subs.StartsWith(".") && new Regex(@"\..+").IsMatch(subs))
       {
         string fileNoPath = file.Substring(0, file.LastIndexOf('.'));
         subs = fileNoPath + subs.Substring(subs.LastIndexOf('.'));
@@ -301,7 +302,7 @@ namespace VpxEncode
       string filePath = GetFolder(file),
              webmPath = Path.Combine(filePath, $"temp_{code}.webm"),
              oggPath = Path.Combine(filePath, $"temp_{code}.ogg"),
-             finalPath = Path.Combine(filePath, $"{code}{ArgList.Get(Arg.NAME_PREFIX).AsString()}.webm");
+             finalPath = Path.Combine(filePath, $"{ArgList.Get(Arg.NAME_PREFIX).AsString()}{code}.webm");
 
       TimeSpan timeLength = end - start;
       string startString = start.ToString("hh\\:mm\\:ss\\.fff"),
@@ -416,21 +417,27 @@ namespace VpxEncode
 
     static string GetCrop(string file, string start, string t)
     {
-      Executer e = new Executer(Executer.FFMPEG);
       string args = $"-ss {start} -i \"{file}\" -t {t} -vf cropdetect=24:2:0 -f null NUL";
-      string output = e.Execute(args);
-      Regex regex = new Regex(@".*(crop=\d+:\d+:\d+:\d+).*");
-      Match match = regex.Match(output);
-      if (!match.Success)
-        return null;
-      return match.Groups[match.Groups.Count - 1].Value;
+      string cached = Cache.Instance.Get(args);
+      if (cached == null)
+      {
+        Executer e = new Executer(Executer.FFMPEG);
+        string output = e.Execute(args);
+        Regex regex = new Regex(@".*(crop=\d+:\d+:\d+:\d+).*");
+        Match match = regex.Match(output);
+        if (!match.Success)
+          return null;
+        cached = match.Groups[match.Groups.Count - 1].Value;
+        Cache.Instance.Put(args, cached);
+      }
+      return cached;
     }
 
     static string DownloadVideo()
     {
       string link = ArgList.Get(Arg.YOUTUBE).AsString();
       IEnumerable<VideoInfo> videoInfos = DownloadUrlResolver.GetDownloadUrls(link);
-      VideoInfo vi = videoInfos.OrderByDescending(x => x.Resolution).First(x => x.VideoType == VideoType.Mp4);
+      VideoInfo vi = videoInfos.OrderByDescending(x => x.Resolution).First(x => x.VideoType == VideoType.Mp4 && x.AudioExtension != null);
       if (vi.RequiresDecryption)
         DownloadUrlResolver.DecryptDownloadUrl(vi);
       VideoDownloader vd = new VideoDownloader(vi, Path.Combine(Environment.CurrentDirectory, vi.Title + vi.VideoExtension));
@@ -446,19 +453,15 @@ namespace VpxEncode
 
     static string GetEndTime(string filePath)
     {
-      Regex regex = new Regex(@".*Duration:\s(\d{2,}:\d{2}:\d{2}.\d{1,3}).*");
-      string s = new Executer(Executer.FFPROBE).Execute($"-hide_banner \"{filePath}\"");
-      Match match = regex.Match(s);
-      if (match.Success)
+      string args = $"-v quiet -print_format json -show_format -hide_banner \"{filePath}\"";
+      string duration = Cache.Instance.Get(args);
+      if (duration == null)
       {
-        string value = match.Groups[1].Value.Trim();
-        int doti = value.LastIndexOf('.');
-        int delta = 3 - (value.Length - 1 - doti);
-        for (int i = 0; i < delta; i++)
-          value += '0';
-        return value;
+        string json = new Executer(Executer.FFPROBE).Execute(args);
+        JObject root = JObject.Parse(json);
+        try { duration = root["format"]["duration"].ToString(); } catch { }
       }
-      return null;
+      return duration;
     }
 
     static void LookupEndTime(string filePath)
@@ -528,11 +531,20 @@ namespace VpxEncode
 
     static string GetScale(string filePath)
     {
-      Regex regex = new Regex(@".*Video:.*\,\s(\d+x\d+).*");
-      Match match = regex.Match(new Executer(Executer.FFPROBE).Execute($"-hide_banner \"{filePath}\""));
-      if (match.Success)
-        return match.Groups[1].Value.Trim();
-      return null;
+      string args = $"-v quiet -print_format json -show_streams -hide_banner \"{filePath}\"";
+      string scale = Cache.Instance.Get(args);
+      if (scale == null)
+      {
+        string json = new Executer(Executer.FFPROBE).Execute(args);
+        JObject root = JObject.Parse(json);
+        try
+        {
+          var videoStream = root["streams"].Where(x => x["codec_type"].ToString() == "video").First();
+          scale = $"{videoStream["width"]}:{videoStream["height"]}";
+        }
+        catch { }
+      }
+      return scale;
     }
 
     static void ExecuteFFMPEG(string args, ProcessingUnit pu)
