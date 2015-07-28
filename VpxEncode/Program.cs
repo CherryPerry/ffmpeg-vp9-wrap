@@ -21,7 +21,7 @@ namespace VpxEncode
                         SUBS_INDEX = "si",
                         PREVIEW = "preview", PREVIEW_SOURCE = "preview_s",
                         OTHER_VIDEO = "ov", OTHER_AUDIO = "oa",
-                        QUALITY = "quality", LIMIT = "limit",
+                        LIMIT = "limit", UPSCALE = "upscale",
                         FILE = "file", SUBS = "subs",
                         TIMINGS = "t", START_TIME = "ss",
                         END_TIME = "to", MAP_AUDIO = "ma",
@@ -31,7 +31,7 @@ namespace VpxEncode
                         AUTOLIMIT_DELTA = "alimitD", AUTOLIMIT_HISTORY = "alimitS",
                         YOUTUBE = "youtube", CROP = "crop",
                         INSTALL = "install", CRF_MODE = "crf",
-                        UPSCALE = "upscale";
+                        SINGLE_THREAD = "sthread";
   }
 
   static class ArgList
@@ -47,7 +47,6 @@ namespace VpxEncode
       [Arg.SCALE] = new Arg(Arg.SCALE, "960:-1", "no|{int:int} скейл изображения (default: 960:-1)"),
       [Arg.OTHER_VIDEO] = new Arg(Arg.OTHER_VIDEO, string.Empty, "{string} доп. параметры выходного файла видео \"-qmin 30\""),
       [Arg.OTHER_AUDIO] = new Arg(Arg.OTHER_AUDIO, string.Empty, "{string} доп. параметры выходного файла аудио \"-af=volume=3\""),
-      [Arg.QUALITY] = new Arg(Arg.QUALITY, "good", "{best|good} качество"),
       [Arg.LIMIT] = new Arg(Arg.LIMIT, "10240", "{int} лимит в KB (default: 10240)"),
       [Arg.OPUS_RATE] = new Arg(Arg.OPUS_RATE, "80", "{int} битрейт аудио (Opus) в Kbps (default: 80)"),
       [Arg.NAME_PREFIX] = new Arg(Arg.NAME_PREFIX, string.Empty, "префикс имени результата"),
@@ -65,7 +64,8 @@ namespace VpxEncode
       [Arg.CROP] = new Arg(Arg.CROP, null, "обрезка черных полос", false),
       [Arg.INSTALL] = new Arg(Arg.INSTALL, null, "установка ffmpeg в систему (только при запуске от имени Администратора)", false),
       [Arg.CRF_MODE] = new Arg(Arg.CRF_MODE, null, "{0-63} режим качества (crf) для коротких webm (alimit и limit не действуют)"),
-      [Arg.UPSCALE] = new Arg(Arg.UPSCALE, null, "разрешить апскейл видео", false)
+      [Arg.UPSCALE] = new Arg(Arg.UPSCALE, null, "разрешить апскейл видео", false),
+      [Arg.SINGLE_THREAD] = new Arg(Arg.SINGLE_THREAD, null, "кодирование в 1 поток", false)
     };
 
     public static void Parse(string[] args)
@@ -218,7 +218,7 @@ namespace VpxEncode
               Encode(index, filePath, subPath, start, end, ArgList.Get(Arg.LIMIT).AsInt());
           }
         };
-        Parallel.ForEach(indexes, new ParallelOptions { MaxDegreeOfParallelism = System.Math.Max(1, Environment.ProcessorCount / 2) }, (singleIndex) =>
+        Parallel.ForEach(indexes, new ParallelOptions { MaxDegreeOfParallelism = ArgList.Get(Arg.SINGLE_THREAD) ? Environment.ProcessorCount : Math.Max(1, Environment.ProcessorCount / 2) }, (singleIndex) =>
         {
           if (lines.Length > singleIndex && singleIndex >= 0)
             startEncodeTiming(singleIndex);
@@ -350,7 +350,7 @@ namespace VpxEncode
         pu.Write("CROP: " + crop);
       }
       if (scale != "no")
-        vf.AppendIfPrev(",").AppendForPrev($"scale={scale}");
+        vf.AppendIfPrev(",").AppendForPrev($"scale={scale}:sws_flags=lanczos");
       if (subs != null)
       {
         string format = subs.EndsWith("ass") || subs.EndsWith("ssa") ? "ass='{0}'{1}" : "subtitles='{0}'{1}";
@@ -364,7 +364,6 @@ namespace VpxEncode
         vf.Append("\" ");
 
       // Encode 2-pass video
-      string quality = ArgList.Get(Arg.QUALITY).AsString();
       FileInfo info = new FileInfo(oggPath);
       double audioSize = info.Length / 1024d;
       int bitrate = (int)((sizeLimit - audioSize) * 8 / timeLength.TotalSeconds);
@@ -378,15 +377,21 @@ namespace VpxEncode
         try { crf = ushort.Parse(ArgList.Get(Arg.CRF_MODE).Value); if (crf > 63) crf = ushort.MaxValue; }
         catch { }
 
+      string threadSettings;
+      if (ArgList.Get(Arg.SINGLE_THREAD))
+        threadSettings = "-tile-columns 0 -frame-parallel 0 -threads 1 -speed 1";
+      else
+        threadSettings = "-tile-columns 1 -frame-parallel 1 -threads 4 -speed 1";
+
       // If CRF_MODE
       if (crf != ushort.MaxValue)
-        EncodeWithCRF(file, vf.ToString(), startString, timeLengthString, crf, code, webmPath, quality, pu);
+        EncodeWithCRF(file, vf.ToString(), startString, timeLengthString, crf, code, webmPath, threadSettings, pu);
       else
       {
-        args = $"-hide_banner -y -ss {startString} -i \"{file}\" -c:v vp9 {bitrateString} -tile-columns 1 -frame-parallel 1 -speed 4 -threads 4 -an {vf} -t {timeLengthString} -sn {otherVideo} -lag-in-frames 25 -pass 1 -auto-alt-ref 1 -passlogfile temp_{code} \"{webmPath}\"";
+        args = $"-hide_banner -y -ss {startString} -i \"{file}\" -c:v vp9 {bitrateString} {threadSettings} -an {vf} -t {timeLengthString} -sn {otherVideo} -lag-in-frames 25 -pass 1 -auto-alt-ref 1 -passlogfile temp_{code} \"{webmPath}\"";
         ExecuteFFMPEG(args, pu);
 
-        args = $"-hide_banner -y -ss {startString} -i \"{file}\" -c:v vp9 {bitrateString} -tile-columns 1 -frame-parallel 1 -speed 1 -threads 4 -an {vf} -t {timeLengthString} -sn {otherVideo} -lag-in-frames 25 -pass 2 -auto-alt-ref 1 -quality {quality} -passlogfile temp_{code} \"{webmPath}\"";
+        args = $"-hide_banner -y -ss {startString} -i \"{file}\" -c:v vp9 {bitrateString} {threadSettings} -an {vf} -t {timeLengthString} -sn {otherVideo} -lag-in-frames 25 -pass 2 -auto-alt-ref 1 -passlogfile temp_{code} \"{webmPath}\"";
         ExecuteFFMPEG(args, pu);
       }
 
@@ -406,12 +411,12 @@ namespace VpxEncode
       return finalPath;
     }
 
-    static void EncodeWithCRF(string file, string vf, string startString, string timeLengthString, ushort crf, string code, string webmPath, string quality, ProcessingUnit pu)
+    static void EncodeWithCRF(string file, string vf, string startString, string timeLengthString, ushort crf, string code, string webmPath, string threadSettings, ProcessingUnit pu)
     {
-      string args = $"-hide_banner -y -ss {startString} -i \"{file}\" -c:v vp9 {vf} -crf {crf} -b:v 0 -tile-columns 1 -frame-parallel 1 -speed 4 -threads 4 -an -t {timeLengthString} -sn -lag-in-frames 25 -pass 1 -auto-alt-ref 1 -passlogfile temp_{code} \"{webmPath}\"";
+      string args = $"-hide_banner -y -ss {startString} -i \"{file}\" -c:v vp9 {vf} -crf {crf} -b:v 0 {threadSettings} -an -t {timeLengthString} -sn -lag-in-frames 25 -pass 1 -auto-alt-ref 1 -passlogfile temp_{code} \"{webmPath}\"";
       ExecuteFFMPEG(args, pu);
 
-      args = $"-hide_banner -y -ss {startString} -i \"{file}\" -c:v vp9 {vf} -crf {crf} -b:v 0 -tile-columns 1 -frame-parallel 1 -speed 1 -threads 4 -an -t {timeLengthString} -sn -quality good -lag-in-frames 25 -pass 2 -auto-alt-ref 1 -passlogfile temp_{code} \"{webmPath}\"";
+      args = $"-hide_banner -y -ss {startString} -i \"{file}\" -c:v vp9 {vf} -crf {crf} -b:v 0 {threadSettings} -an -t {timeLengthString} -sn -lag-in-frames 25 -pass 2 -auto-alt-ref 1 -passlogfile temp_{code} \"{webmPath}\"";
       ExecuteFFMPEG(args, pu);
     }
 
@@ -421,8 +426,7 @@ namespace VpxEncode
       string cached = Cache.Instance.Get(args);
       if (cached == null)
       {
-        Executer e = new Executer(Executer.FFMPEG);
-        string output = e.Execute(args);
+        string output = new Executer(Executer.FFMPEG).Execute(args);
         Regex regex = new Regex(@".*(crop=\d+:\d+:\d+:\d+).*");
         Match match = regex.Match(output);
         if (!match.Success)

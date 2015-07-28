@@ -1,13 +1,13 @@
 ﻿using System;
 using System.Linq;
-using System.Collections.Generic;
 using System.Text;
+using System.Collections.Concurrent;
 
 namespace VpxEncode
 {
   static class StringBuilderExtension
   {
-    static Dictionary<WeakReference<StringBuilder>, bool> prev = new Dictionary<WeakReference<StringBuilder>, bool>();
+    static ConcurrentDictionary<WeakReference<StringBuilder>, bool> prev = new ConcurrentDictionary<WeakReference<StringBuilder>, bool>();
 
     public static StringBuilder AppendIfPrev(this StringBuilder sb, string value)
     {
@@ -20,7 +20,7 @@ namespace VpxEncode
 
     public static StringBuilder AppendForPrev(this StringBuilder sb, string value)
     {
-      bool p = !String.IsNullOrWhiteSpace(value);
+      bool p = !string.IsNullOrWhiteSpace(value);
       if (p)
         sb.Append(value);
       StringBuilder mapped = null;
@@ -34,7 +34,7 @@ namespace VpxEncode
 
     public static bool Contains(this StringBuilder sb, string value)
     {
-      if (String.IsNullOrEmpty(value))
+      if (string.IsNullOrEmpty(value))
         return false;
 
       int valueIndex = 0;
