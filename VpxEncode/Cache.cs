@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+﻿using System.Collections.Concurrent;
 
 namespace VpxEncode
 {
@@ -7,18 +7,23 @@ namespace VpxEncode
     private static Cache cache = new Cache();
     public static Cache Instance { get { return cache; } }
 
-    private Dictionary<string, string> Map = new Dictionary<string, string>();
+    private ConcurrentDictionary<string, object> Map = new ConcurrentDictionary<string, object>();
 
     private Cache() { }
 
-    public string this[string key] { get { return Get(key); } }
-
-    public void Put(string key, string value) { Map[key] = value; }
+    public void Put(string key, object value) { Map[key] = value; }
 
     public string Get(string key)
     {
       if (Map.ContainsKey(key))
-        return Map[key];
+        return Map[key] as string;
+      return null;
+    }
+
+    public byte[] GetBytes(string key)
+    {
+      if (Map.ContainsKey(key))
+        return Map[key] as byte[];
       return null;
     }
   }

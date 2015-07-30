@@ -354,8 +354,8 @@ namespace VpxEncode
       if (subs != null)
       {
         string format = subs.EndsWith("ass") || subs.EndsWith("ssa") ? "ass='{0}'{1}" : "subtitles='{0}'{1}";
-        format = String.Format(format, subs.Replace(@"\", @"\\").Replace(":", @"\:"), ArgList.Get(Arg.SUBS_INDEX).Command);
-        format = String.Format(new CultureInfo("en"), "setpts=PTS+{0:0.######}/TB,{1},setpts=PTS-STARTPTS", start.TotalSeconds, format);
+        format = string.Format(format, subs.Replace(@"\", @"\\").Replace(":", @"\:"), ArgList.Get(Arg.SUBS_INDEX).Command);
+        format = string.Format(new CultureInfo("en"), "setpts=PTS+{0:0.######}/TB,{1},setpts=PTS-STARTPTS", start.TotalSeconds, format);
         vf.AppendIfPrev(",").AppendForPrev(format);
       }
       if (vf.Length == vfDefault.Length)
@@ -383,13 +383,32 @@ namespace VpxEncode
       else
         threadSettings = "-tile-columns 1 -frame-parallel 1 -threads 4 -speed 1";
 
+      // Pass 1 cache
+      string logPath = Path.Combine(filePath, $"temp_{code}-0.log");
+      FirstPassCache.FPCKey key = new FirstPassCache.FPCKey(file, vf.ToString(), startString, timeLengthString);
+      bool cached = FirstPassCache.Instance.CreateIfPossible(key, logPath);
+
       // If CRF_MODE
       if (crf != ushort.MaxValue)
-        EncodeWithCRF(file, vf.ToString(), startString, timeLengthString, crf, code, webmPath, threadSettings, pu);
+      {
+        if (!cached)
+        {
+          args = $"-hide_banner -y -ss {startString} -i \"{file}\" -c:v vp9 {vf} -crf {crf} -b:v 0 {threadSettings} -an -t {timeLengthString} -sn -lag-in-frames 25 -pass 1 -auto-alt-ref 1 -passlogfile temp_{code} \"{webmPath}\"";
+          ExecuteFFMPEG(args, pu);
+          FirstPassCache.Instance.Save(key, logPath);
+        }
+
+        args = $"-hide_banner -y -ss {startString} -i \"{file}\" -c:v vp9 {vf} -crf {crf} -b:v 0 {threadSettings} -an -t {timeLengthString} -sn -lag-in-frames 25 -pass 2 -auto-alt-ref 1 -passlogfile temp_{code} \"{webmPath}\"";
+        ExecuteFFMPEG(args, pu);
+      }
       else
       {
-        args = $"-hide_banner -y -ss {startString} -i \"{file}\" -c:v vp9 {bitrateString} {threadSettings} -an {vf} -t {timeLengthString} -sn {otherVideo} -lag-in-frames 25 -pass 1 -auto-alt-ref 1 -passlogfile temp_{code} \"{webmPath}\"";
-        ExecuteFFMPEG(args, pu);
+        if (!cached)
+        {
+          args = $"-hide_banner -y -ss {startString} -i \"{file}\" -c:v vp9 {bitrateString} {threadSettings} -an {vf} -t {timeLengthString} -sn {otherVideo} -lag-in-frames 25 -pass 1 -auto-alt-ref 1 -passlogfile temp_{code} \"{webmPath}\"";
+          ExecuteFFMPEG(args, pu);
+          FirstPassCache.Instance.Save(key, logPath);
+        }
 
         args = $"-hide_banner -y -ss {startString} -i \"{file}\" -c:v vp9 {bitrateString} {threadSettings} -an {vf} -t {timeLengthString} -sn {otherVideo} -lag-in-frames 25 -pass 2 -auto-alt-ref 1 -passlogfile temp_{code} \"{webmPath}\"";
         ExecuteFFMPEG(args, pu);
@@ -404,20 +423,11 @@ namespace VpxEncode
         File.Delete(subs);
       File.Delete(webmPath);
       File.Delete(oggPath);
-      File.Delete(Path.Combine(filePath, $"temp_{code}-0.log"));
+      File.Delete(logPath);
 
       sp.Destroy(pu);
 
       return finalPath;
-    }
-
-    static void EncodeWithCRF(string file, string vf, string startString, string timeLengthString, ushort crf, string code, string webmPath, string threadSettings, ProcessingUnit pu)
-    {
-      string args = $"-hide_banner -y -ss {startString} -i \"{file}\" -c:v vp9 {vf} -crf {crf} -b:v 0 {threadSettings} -an -t {timeLengthString} -sn -lag-in-frames 25 -pass 1 -auto-alt-ref 1 -passlogfile temp_{code} \"{webmPath}\"";
-      ExecuteFFMPEG(args, pu);
-
-      args = $"-hide_banner -y -ss {startString} -i \"{file}\" -c:v vp9 {vf} -crf {crf} -b:v 0 {threadSettings} -an -t {timeLengthString} -sn -lag-in-frames 25 -pass 2 -auto-alt-ref 1 -passlogfile temp_{code} \"{webmPath}\"";
-      ExecuteFFMPEG(args, pu);
     }
 
     static string GetCrop(string file, string start, string t)
@@ -586,7 +596,7 @@ namespace VpxEncode
     static string GetFolder(string file)
     {
       string pathToFile = Path.GetDirectoryName(file);
-      if (String.IsNullOrEmpty(pathToFile))
+      if (string.IsNullOrEmpty(pathToFile))
         pathToFile = Environment.CurrentDirectory;
       return pathToFile;
     }
