@@ -517,16 +517,19 @@ namespace VpxEncode
         // Same scale	
         string scale = GetScale(filePath);
         scale = scale == null ? string.Empty : ("-vf scale=" + scale);
-        args = $"-hide_banner -ss {previewTiming} -i \"{previewSource}\" -c:v vp9 -b:v 0 -crf 4 -vframes 1 -quality best -an -sn {scale} \"{previewWebm}\"";
+        args = $"-hide_banner -ss {previewTiming} -i \"{previewSource}\" -c:v vp9 -b:v 0 -crf 4 -vframes 1 -speed 1 -an -sn {scale} \"{previewWebm}\"";
       }
       ExecuteFFMPEG(args, pu);
 
-      // concat
+      // Bad muxing fix
+      string videoOnly = $"video_{time}.webm";
+      args = $"-hide_banner -i \"{filePath}\" -c copy -map 0:v \"{videoOnly}\"";
+      ExecuteFFMPEG(args, pu);
+
+      // Concat
       string concatedWebm = $"concat_{time}.webm";
       string concatFile = $"concat_{time}.txt";
-      File.WriteAllText(concatFile,
-        $"file '{previewWebm}'\r\nfile '{filePath}'",
-        Encoding.Default);
+      File.WriteAllText(concatFile, $"file '{previewWebm}'\r\nfile '{videoOnly}'", Encoding.Default);
       args = $"-hide_banner -f concat -i \"{concatFile}\" -c copy \"{concatedWebm}\"";
       ExecuteFFMPEG(args, pu);
 
@@ -541,6 +544,7 @@ namespace VpxEncode
       File.Delete(concatFile);
       File.Delete(previewWebm);
       File.Delete(concatedWebm);
+      File.Delete(videoOnly);
 
       sp.Destroy(pu);
     }
