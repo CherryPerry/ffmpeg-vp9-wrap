@@ -18,14 +18,14 @@ namespace VpxEncode
   partial class Arg
   {
     public const string TIMINGS_INDEX = "ti", FIX_SUBS = "fs",
-                        SUBS_INDEX = "si",
+                        SUBS_INDEX = "si", SCALE = "scale",
                         PREVIEW = "preview", PREVIEW_SOURCE = "preview_s",
                         OTHER_VIDEO = "ov", OTHER_AUDIO = "oa",
                         LIMIT = "limit", UPSCALE = "upscale",
                         FILE = "file", SUBS = "subs",
                         TIMINGS = "t", START_TIME = "ss",
                         END_TIME = "to", MAP_AUDIO = "ma",
-                        SCALE = "scale", GENERATE_TIMING = "gent",
+                        GENERATE_TIMING = "gent", GENERATE_T_FILE = "genf",
                         OPUS_RATE = "opusRate", NAME_PREFIX = "name",
                         AUDIO_FILE = "af", AUTOLIMIT = "alimit",
                         AUTOLIMIT_DELTA = "alimitD", AUTOLIMIT_HISTORY = "alimitS",
@@ -39,7 +39,7 @@ namespace VpxEncode
     static SortedDictionary<string, Arg> ArgsDict = new SortedDictionary<string, Arg>()
     {
       [Arg.FILE] = new Arg(Arg.FILE, null, "{string} файл"),
-      [Arg.SUBS] = new Arg(Arg.SUBS, null, "{string} сабы (file, *.ass, *"),
+      [Arg.SUBS] = new Arg(Arg.SUBS, null, "{string} сабы (filepath, *.ass, same"),
       [Arg.TIMINGS] = new Arg(Arg.TIMINGS, null, "{string} файл таймингов ({00:00.000|00:00:00.000|0} {00:00.000|00:00:00.000|0}\\n)"),
       [Arg.START_TIME] = new Arg(Arg.START_TIME, "0", "{00:00.000|00:00:00.000|0} начало отрезка"),
       [Arg.END_TIME] = new Arg(Arg.END_TIME, null, "{00:00.000|00:00:00.000|0} конец отрезка"),
@@ -55,6 +55,7 @@ namespace VpxEncode
       [Arg.SUBS_INDEX] = new Arg(Arg.SUBS_INDEX, null, "индекс субтитров, если в контейнере", ":si={0}"),
       [Arg.AUDIO_FILE] = new Arg(Arg.AUDIO_FILE, null, "{string} внешняя аудиодорожка"),
       [Arg.GENERATE_TIMING] = new Arg(Arg.GENERATE_TIMING, null, "сгенерировать timings.txt из ffprobe", false),
+      [Arg.GENERATE_T_FILE] = new Arg(Arg.GENERATE_T_FILE, null, "имя файла при " + Arg.GENERATE_TIMING),
       [Arg.AUTOLIMIT] = new Arg(Arg.AUTOLIMIT, null, "подогнать под лимит", false),
       [Arg.AUTOLIMIT_DELTA] = new Arg(Arg.AUTOLIMIT_DELTA, "240", "{int} погрешность автоподгона в KB (default: 240)"),
       [Arg.AUTOLIMIT_HISTORY] = new Arg(Arg.AUTOLIMIT_HISTORY, null, "{int:int} добавить историю попыток KB '10240:6567,13000:7800'"),
@@ -183,7 +184,10 @@ namespace VpxEncode
 
       if (ArgList.Get(Arg.GENERATE_TIMING))
       {
-        TimingGenerator tg = new TimingGenerator(filePath);
+        string gentfile = null;
+        if (ArgList.Get(Arg.GENERATE_T_FILE))
+          gentfile = Path.Combine(GetFolder(filePath), ArgList.Get(Arg.GENERATE_T_FILE).Value);
+        TimingGenerator tg = new TimingGenerator(filePath, gentfile);
         tg.Generate(true);
         return;
       }
@@ -271,12 +275,9 @@ namespace VpxEncode
 
     static string Encode(long i, string file, string subs, TimeSpan start, TimeSpan end, int sizeLimit)
     {
-      // subs = .ass
-      if (subs != null && subs.StartsWith(".") && new Regex(@"\..+").IsMatch(subs))
-      {
-        string fileNoPath = file.Substring(0, file.LastIndexOf('.'));
-        subs = fileNoPath + subs.Substring(subs.LastIndexOf('.'));
-      }
+      // subs = *.ass
+      if (subs != null && subs.StartsWith("*"))
+        subs = file.Substring(0, file.LastIndexOf('.')) + subs.Substring(1);
 
       // subs = same
       if (subs == "same")

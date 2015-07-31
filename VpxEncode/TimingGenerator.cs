@@ -14,10 +14,15 @@ namespace VpxEncode
     public string[] Timings { get; set; }
 
     private string output;
+    private string OutFile;
 
-    public TimingGenerator(string file)
+    public TimingGenerator(string file, string output)
     {
       File = file;
+      if (output == null)
+        OutFile = File + "-timing.txt";
+      else
+        OutFile = output;
     }
 
     public void Generate(bool toFile)
@@ -41,7 +46,7 @@ namespace VpxEncode
       }
       Timings = asList.ToArray();
       if (sb.Length > 0 && toFile)
-        System.IO.File.WriteAllText(File + "-timing.txt", sb.ToString());
+        System.IO.File.WriteAllText(OutFile, sb.ToString());
     }
   }
 }
