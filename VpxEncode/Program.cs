@@ -218,7 +218,8 @@ namespace VpxEncode
               Encode(index, filePath, subPath, start, end, ArgList.Get(Arg.LIMIT).AsInt());
           }
         };
-        Parallel.ForEach(indexes, new ParallelOptions { MaxDegreeOfParallelism = ArgList.Get(Arg.SINGLE_THREAD) ? Environment.ProcessorCount : Math.Max(1, Environment.ProcessorCount / 2) }, (singleIndex) =>
+        Parallel.ForEach(indexes, new ParallelOptions { MaxDegreeOfParallelism = ArgList.Get(Arg.SINGLE_THREAD) ? (Environment.ProcessorCount - 1) : Math.Max(1, Environment.ProcessorCount / 2) },
+          (singleIndex) =>
         {
           if (lines.Length > singleIndex && singleIndex >= 0)
             startEncodeTiming(singleIndex);
