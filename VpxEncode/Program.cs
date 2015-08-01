@@ -213,7 +213,7 @@ namespace VpxEncode
         {
           Console.WriteLine("Start encode timing file {0} line", index);
           string[] splitted = lines[index].Split(' ');
-          if (splitted.Length == 2)
+          if (splitted.Length >= 2)
           {
             TimeSpan start = ParseToTimespan(splitted[0]), end = ParseToTimespan(splitted[1]);
             if (ArgList.Get(Arg.AUTOLIMIT))
@@ -317,10 +317,19 @@ namespace VpxEncode
       string mapAudio = ArgList.Get(Arg.MAP_AUDIO) ? $"-map 0:a:{ArgList.Get(Arg.MAP_AUDIO).AsInt()}" : string.Empty;
       int opusRate = ArgList.Get(Arg.OPUS_RATE).AsInt();
       string audioFile = ArgList.Get(Arg.AUDIO_FILE) ? GetFullPath(ArgList.Get(Arg.AUDIO_FILE).AsString()) : file;
+      string otherAudio = ArgList.Get(Arg.OTHER_AUDIO).AsString();
 
       // Encode audio
-      string args = $"-hide_banner -y -ss {startString} -i \"{audioFile}\" {mapAudio} -ac 2 -c:a opus -b:a {opusRate}K -vbr on -vn -sn -t {timeLengthString} {ArgList.Get(Arg.OTHER_AUDIO).AsString()} \"{oggPath}\"";
-      ExecuteFFMPEG(args, pu);
+      string args = $"-hide_banner -y -ss {startString} -i \"{audioFile}\" {mapAudio} -ac 2 -c:a opus -b:a {opusRate}K -vbr on -vn -sn -t {timeLengthString} {otherAudio} \"{oggPath}\"";
+
+      // Audio cache
+      AudioCache.ACKey aKey = new AudioCache.ACKey(args);
+      bool aCached = AudioCache.Instance.CreateIfPossible(aKey, oggPath);
+      if (!aCached)
+      {
+        ExecuteFFMPEG(args, pu);
+        AudioCache.Instance.Save(aKey, oggPath);
+      }
 
       // No upscale check
       string scale = ArgList.Get(Arg.SCALE).AsString();
