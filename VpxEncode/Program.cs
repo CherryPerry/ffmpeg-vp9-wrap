@@ -323,12 +323,12 @@ namespace VpxEncode
       string args = $"-hide_banner -y -ss {startString} -i \"{audioFile}\" {mapAudio} -ac 2 -c:a opus -b:a {opusRate}K -vbr on -vn -sn -t {timeLengthString} {otherAudio} \"{oggPath}\"";
 
       // Audio cache
-      AudioCache.ACKey aKey = new AudioCache.ACKey(args);
-      bool aCached = AudioCache.Instance.CreateIfPossible(aKey, oggPath);
+      Cache.ACKey aKey = new Cache.ACKey(args);
+      bool aCached = Cache.Instance.CreateIfPossible(aKey, oggPath);
       if (!aCached)
       {
         ExecuteFFMPEG(args, pu);
-        AudioCache.Instance.Save(aKey, oggPath);
+        Cache.Instance.Save(aKey, oggPath);
       }
 
       // No upscale check
@@ -396,8 +396,8 @@ namespace VpxEncode
 
       // Pass 1 cache
       string logPath = Path.Combine(filePath, $"temp_{code}-0.log");
-      FirstPassCache.FPCKey key = new FirstPassCache.FPCKey(file, vf.ToString(), startString, timeLengthString);
-      bool cached = FirstPassCache.Instance.CreateIfPossible(key, logPath);
+      Cache.FPCKey key = new Cache.FPCKey(file, vf.ToString(), startString, timeLengthString);
+      bool cached = Cache.Instance.CreateIfPossible(key, logPath);
 
       // If CRF_MODE
       if (crf != ushort.MaxValue)
@@ -406,7 +406,7 @@ namespace VpxEncode
         {
           args = $"-hide_banner -y -ss {startString} -i \"{file}\" -c:v vp9 {vf} -crf {crf} -b:v 0 {threadSettings} -an -t {timeLengthString} -sn -lag-in-frames 25 -pass 1 -auto-alt-ref 1 -passlogfile temp_{code} \"{webmPath}\"";
           ExecuteFFMPEG(args, pu);
-          FirstPassCache.Instance.Save(key, logPath);
+          Cache.Instance.Save(key, logPath);
         }
 
         args = $"-hide_banner -y -ss {startString} -i \"{file}\" -c:v vp9 {vf} -crf {crf} -b:v 0 {threadSettings} -an -t {timeLengthString} -sn -lag-in-frames 25 -pass 2 -auto-alt-ref 1 -passlogfile temp_{code} \"{webmPath}\"";
@@ -418,7 +418,7 @@ namespace VpxEncode
         {
           args = $"-hide_banner -y -ss {startString} -i \"{file}\" -c:v vp9 {bitrateString} {threadSettings} -an {vf} -t {timeLengthString} -sn {otherVideo} -lag-in-frames 25 -pass 1 -auto-alt-ref 1 -passlogfile temp_{code} \"{webmPath}\"";
           ExecuteFFMPEG(args, pu);
-          FirstPassCache.Instance.Save(key, logPath);
+          Cache.Instance.Save(key, logPath);
         }
 
         args = $"-hide_banner -y -ss {startString} -i \"{file}\" -c:v vp9 {bitrateString} {threadSettings} -an {vf} -t {timeLengthString} -sn {otherVideo} -lag-in-frames 25 -pass 2 -auto-alt-ref 1 -passlogfile temp_{code} \"{webmPath}\"";
@@ -444,7 +444,7 @@ namespace VpxEncode
     static string GetCrop(string file, string start, string t)
     {
       string args = $"-ss {start} -i \"{file}\" -t {t} -vf cropdetect=24:2:0 -f null NUL";
-      string cached = Cache.Instance.Get(args);
+      string cached = Cache.Instance.Get<string>(Cache.CACHE_STRINGS, args);
       if (cached == null)
       {
         string output = new Executer(Executer.FFMPEG).Execute(args);
@@ -453,7 +453,7 @@ namespace VpxEncode
         if (!match.Success)
           return null;
         cached = match.Groups[match.Groups.Count - 1].Value;
-        Cache.Instance.Put(args, cached);
+        Cache.Instance.Put(Cache.CACHE_STRINGS, args, cached);
       }
       return cached;
     }
@@ -479,12 +479,18 @@ namespace VpxEncode
     static string GetEndTime(string filePath)
     {
       string args = $"-v quiet -print_format json -show_format -hide_banner \"{filePath}\"";
-      string duration = Cache.Instance.Get(args);
+      string key = args + "DURATION";
+      string duration = Cache.Instance.Get<string>(Cache.CACHE_STRINGS, key);
       if (duration == null)
       {
         string json = new Executer(Executer.FFPROBE).Execute(args);
         JObject root = JObject.Parse(json);
-        try { duration = root["format"]["duration"].ToString(); } catch { }
+        try
+        {
+          duration = root["format"]["duration"].ToString();
+          Cache.Instance.Put(Cache.CACHE_STRINGS, key, duration);
+        }
+        catch { }
       }
       return duration;
     }
@@ -561,7 +567,8 @@ namespace VpxEncode
     static string GetScale(string filePath)
     {
       string args = $"-v quiet -print_format json -show_streams -hide_banner \"{filePath}\"";
-      string scale = Cache.Instance.Get(args);
+      string key = args + "SCALE";
+      string scale = Cache.Instance.Get<string>(Cache.CACHE_STRINGS, key);
       if (scale == null)
       {
         string json = new Executer(Executer.FFPROBE).Execute(args);
@@ -570,6 +577,7 @@ namespace VpxEncode
         {
           var videoStream = root["streams"].Where(x => x["codec_type"].ToString() == "video").First();
           scale = $"{videoStream["width"]}:{videoStream["height"]}";
+          Cache.Instance.Put(Cache.CACHE_STRINGS, key, scale);
         }
         catch { }
       }
