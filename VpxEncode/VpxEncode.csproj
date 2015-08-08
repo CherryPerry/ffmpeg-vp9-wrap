@@ -83,6 +83,7 @@
     <Compile Include="Cache.cs" />
     <Compile Include="Executer.cs" />
     <Compile Include="FfmpegLoader.cs" />
+    <Compile Include="Ffprober.cs" />
     <Compile Include="LinearBitrateLookup.cs" />
     <Compile Include="Output\OutputProcessor.cs" />
     <Compile Include="Output\PercentedProcessor.cs" />

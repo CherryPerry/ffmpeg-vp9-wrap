@@ -222,7 +222,8 @@ namespace VpxEncode
               Encode(index, filePath, subPath, start, end, ArgList.Get(Arg.LIMIT).AsInt());
           }
         };
-        Parallel.ForEach(indexes, new ParallelOptions { MaxDegreeOfParallelism = ArgList.Get(Arg.SINGLE_THREAD) ? (Environment.ProcessorCount - 1) : Math.Max(1, Environment.ProcessorCount / 2) },
+        Parallel.ForEach(indexes, new ParallelOptions
+        { MaxDegreeOfParallelism = ArgList.Get(Arg.SINGLE_THREAD) ? Math.Max(1, Environment.ProcessorCount - 1) : Math.Max(1, Environment.ProcessorCount / 2) },
           (singleIndex) =>
         {
           if (lines.Length > singleIndex && singleIndex >= 0)
@@ -335,7 +336,7 @@ namespace VpxEncode
       string scale = ArgList.Get(Arg.SCALE).AsString();
       if (scale != "no" && !ArgList.Get(Arg.UPSCALE))
       {
-        string oScale = GetScale(file);
+        string oScale = Ffprober.Probe(file).Scale;
         string[] scaleSplit = oScale.Split('x');
         if (scaleSplit.Length == 2)
         {
@@ -426,7 +427,7 @@ namespace VpxEncode
       }
 
       // Concat
-      args = $"-hide_banner -y -i \"{webmPath}\" -i \"{oggPath}\" -c copy -metadata title=\"{Path.GetFileNameWithoutExtension(file)} encoded by github.com/CherryPerry/ffmpeg-vp9-wrap\" \"{finalPath}\"";
+      args = $"-hide_banner -y -i \"{webmPath}\" -i \"{oggPath}\" -c copy -metadata title=\"{Path.GetFileNameWithoutExtension(file)} [github.com/CherryPerry/ffmpeg-vp9-wrap]\" \"{finalPath}\"";
       ExecuteFFMPEG(args, pu);
 
       // Delete
@@ -443,7 +444,7 @@ namespace VpxEncode
 
     static string GetCrop(string file, string start, string t)
     {
-      string args = $"-ss {start} -i \"{file}\" -t {t} -vf cropdetect=24:2:0 -f null NUL";
+      string args = $"-hide_banner -ss {start} -i \"{file}\" -t {t} -vf cropdetect=24:2:0 -f null NUL";
       string cached = Cache.Instance.Get<string>(Cache.CACHE_STRINGS, args);
       if (cached == null)
       {
@@ -476,35 +477,17 @@ namespace VpxEncode
       return vd.SavePath;
     }
 
-    static string GetEndTime(string filePath)
-    {
-      string args = $"-v quiet -print_format json -show_format -hide_banner \"{filePath}\"";
-      string key = args + "DURATION";
-      string duration = Cache.Instance.Get<string>(Cache.CACHE_STRINGS, key);
-      if (duration == null)
-      {
-        string json = new Executer(Executer.FFPROBE).Execute(args);
-        JObject root = JObject.Parse(json);
-        try
-        {
-          duration = root["format"]["duration"].ToString();
-          Cache.Instance.Put(Cache.CACHE_STRINGS, key, duration);
-        }
-        catch { }
-      }
-      return duration;
-    }
-
     static void LookupEndTime(string filePath)
     {
       if (!ArgList.Get(Arg.END_TIME))
       {
-        string value = GetEndTime(filePath);
+        string value = Ffprober.Probe(filePath).EndTime;
         if (value != null)
           ArgList.Get(Arg.END_TIME).Value = value;
       }
     }
 
+    // method 1: add preview as separate track with slightly bigger resolution (via Pituz)
     static void GeneratePreview(string filePath)
     {
       OutputProcessor sp = new SimpleProcessor();
@@ -512,28 +495,45 @@ namespace VpxEncode
 
       string fileName = Path.GetFileName(filePath),
              output = filePath.Substring(0, filePath.LastIndexOf('.') + 1) + "preview.webm",
-             previewSource;
-      if (!ArgList.Get(Arg.PREVIEW_SOURCE))
-        previewSource = filePath;
-      else
-        previewSource = GetFullPath(ArgList.Get(Arg.PREVIEW_SOURCE).AsString());
-      string previewTiming = ArgList.Get(Arg.PREVIEW).AsString();
-      bool previewSourceIsWebm = previewSource.EndsWith("webm");
+             previewSource = ArgList.Get(Arg.PREVIEW_SOURCE) ? GetFullPath(ArgList.Get(Arg.PREVIEW_SOURCE).AsString()) : filePath,
+             previewTiming = ArgList.Get(Arg.PREVIEW).AsString();
 
-      // preview.webm
+      // Preview
       long time = DateTime.Now.ToFileTimeUtc();
       string previewWebm = GetFolder(filePath) + "\\preview_" + time.ToString() + ".webm";
-      string args;
-      // TODO: webm copy does not work, increases time of video by 5 second!
-      if (previewSourceIsWebm && false)
-        args = $"-hide_banner -ss {previewTiming} -i \"{previewSource}\" -c:v copy -vframes 1 -an -sn \"{previewWebm}\"";
-      else
-      {
-        // Same scale	
-        string scale = GetScale(filePath);
-        scale = scale == null ? string.Empty : ("-vf scale=" + scale);
-        args = $"-hide_banner -ss {previewTiming} -i \"{previewSource}\" -c:v vp9 -b:v 0 -crf 4 -vframes 1 -speed 1 -an -sn {scale} \"{previewWebm}\"";
-      }
+
+      // Same scale
+      Ffprober.Result result = Ffprober.Probe(filePath);
+      string scale = result.Scale;
+      scale = scale == null ? string.Empty : $",scale={result.WidthPix + 1}:-1";
+      scale = $"-filter:v:1 \"trim=end_frame=2{scale}\"";
+      string args = $"-hide_banner -i \"{filePath}\" -ss {previewTiming} -i \"{previewSource}\" -c copy -map 0:v -map 0:a -map 1:v -c:v:1 vp9 -b:v:1 0 -crf 8 -speed 1 {scale} \"{output}\"";
+      ExecuteFFMPEG(args, pu);
+
+      sp.Destroy(pu);
+    }
+
+    [Obsolete]
+    static void GeneratePreviewOld(string filePath)
+    {
+      OutputProcessor sp = new SimpleProcessor();
+      ProcessingUnit pu = sp.CreateOne();
+
+      string fileName = Path.GetFileName(filePath),
+             output = filePath.Substring(0, filePath.LastIndexOf('.') + 1) + "preview.webm",
+             previewSource = ArgList.Get(Arg.PREVIEW_SOURCE) ? GetFullPath(ArgList.Get(Arg.PREVIEW_SOURCE).AsString()) : filePath,
+             previewTiming = ArgList.Get(Arg.PREVIEW).AsString();
+
+      // Preview
+      long time = DateTime.Now.ToFileTimeUtc();
+      string previewWebm = GetFolder(filePath) + "\\preview_" + time.ToString() + ".webm";
+
+      // Same scale
+      Ffprober.Result result = Ffprober.Probe(filePath);
+      string scale = result.Scale;
+      scale = scale == null ? string.Empty : (",scale=" + scale);
+      scale = $"-vf \"trim=end_frame=2{scale}\"";
+      string args = $"-hide_banner -ss {previewTiming} -i \"{previewSource}\" -c:v vp9 -b:v 0 -crf 8 -speed 1 -an -sn {scale} \"{previewWebm}\"";
       ExecuteFFMPEG(args, pu);
 
       // Bad muxing fix
@@ -545,14 +545,13 @@ namespace VpxEncode
       string concatedWebm = $"concat_{time}.webm";
       string concatFile = $"concat_{time}.txt";
       File.WriteAllText(concatFile, $"file '{previewWebm}'\r\nfile '{videoOnly}'", Encoding.Default);
+      string fps = result.Framerate;
+      string dur = Ffprober.Probe(previewWebm).EndTime;
+      if (dur == null)
+        dur = "0.042";
       args = $"-hide_banner -f concat -i \"{concatFile}\" -c copy \"{concatedWebm}\"";
       ExecuteFFMPEG(args, pu);
-
-      // Audio
-      string dur = GetEndTime(previewWebm);
-      if (dur == null)
-        dur = "00:00.042";
-      args = $"-hide_banner -y -i \"{concatedWebm}\" -itsoffset {dur} -i \"{filePath}\" -map 0:v -map 1:a -c copy \"{output}\"";
+      args = $"-hide_banner -y -itsoffset 0.5 -i \"{filePath}\" -i \"{concatedWebm}\" -map 1:v -map 0:a -c copy \"{output}\"";
       ExecuteFFMPEG(args, pu);
 
       // Delete
@@ -562,26 +561,6 @@ namespace VpxEncode
       File.Delete(videoOnly);
 
       sp.Destroy(pu);
-    }
-
-    static string GetScale(string filePath)
-    {
-      string args = $"-v quiet -print_format json -show_streams -hide_banner \"{filePath}\"";
-      string key = args + "SCALE";
-      string scale = Cache.Instance.Get<string>(Cache.CACHE_STRINGS, key);
-      if (scale == null)
-      {
-        string json = new Executer(Executer.FFPROBE).Execute(args);
-        JObject root = JObject.Parse(json);
-        try
-        {
-          var videoStream = root["streams"].Where(x => x["codec_type"].ToString() == "video").First();
-          scale = $"{videoStream["width"]}:{videoStream["height"]}";
-          Cache.Instance.Put(Cache.CACHE_STRINGS, key, scale);
-        }
-        catch { }
-      }
-      return scale;
     }
 
     static void ExecuteFFMPEG(string args, ProcessingUnit pu)

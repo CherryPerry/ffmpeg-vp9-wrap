@@ -29,7 +29,12 @@ namespace VpxEncode
 
     private ConcurrentDictionary<int, ConcurrentDictionary<object, object>> Map = new ConcurrentDictionary<int, ConcurrentDictionary<object, object>>();
 
-    private Cache() { }
+    private Cache()
+    {
+      Map[CACHE_AUDIO] = new ConcurrentDictionary<object, object>();
+      Map[CACHE_FIRSTPASS] = new ConcurrentDictionary<object, object>();
+      Map[CACHE_STRINGS] = new ConcurrentDictionary<object, object>();
+    }
 
     public void Put(int mode, object key, object value) { Map[mode][key] = value; }
 
