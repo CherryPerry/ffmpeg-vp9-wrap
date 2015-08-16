@@ -215,11 +215,15 @@ namespace VpxEncode
           string[] splitted = lines[index].Split(' ');
           if (splitted.Length >= 2)
           {
+            ushort crf = ArgList.Get(Arg.CRF_MODE) ? ushort.Parse(ArgList.Get(Arg.CRF_MODE).Value) : (ushort)0;
             TimeSpan start = ParseToTimespan(splitted[0]), end = ParseToTimespan(splitted[1]);
             if (ArgList.Get(Arg.AUTOLIMIT))
-              BitrateLookupEncode((newTarget) => { return Encode(index, filePath, subPath, start, end, newTarget); });
+              if (crf != 0)
+                CrfLookupEncode(crf, (newCrf) => { return Encode(index, filePath, subPath, start, end, 0, newCrf); });
+              else
+                BitrateLookupEncode((newTarget) => { return Encode(index, filePath, subPath, start, end, newTarget, 0); });
             else
-              Encode(index, filePath, subPath, start, end, ArgList.Get(Arg.LIMIT).AsInt());
+              Encode(index, filePath, subPath, start, end, ArgList.Get(Arg.LIMIT).AsInt(), 0);
           }
         };
         Parallel.ForEach(indexes, new ParallelOptions
@@ -235,15 +239,39 @@ namespace VpxEncode
         LookupEndTime(filePath);
         if (ArgList.Get(Arg.END_TIME))
         {
+          ushort crf = ArgList.Get(Arg.CRF_MODE) ? ushort.Parse(ArgList.Get(Arg.CRF_MODE).Value) : (ushort)0;
           TimeSpan start = ArgList.Get(Arg.START_TIME).AsTimeSpan(), end = ArgList.Get(Arg.END_TIME).AsTimeSpan();
           if (ArgList.Get(Arg.AUTOLIMIT))
-            BitrateLookupEncode((newTarget) => Encode(DateTime.Now.ToFileTimeUtc(), filePath, subPath, start, end, newTarget));
+            if (crf != 0)
+              CrfLookupEncode(crf, (newCrf) => Encode(DateTime.Now.ToFileTimeUtc(), filePath, subPath, start, end, 0, newCrf));
+            else
+              BitrateLookupEncode((newTarget) => Encode(DateTime.Now.ToFileTimeUtc(), filePath, subPath, start, end, newTarget, 0));
           else
-            Encode(DateTime.Now.ToFileTimeUtc(), filePath, subPath, start, end, ArgList.Get(Arg.LIMIT).AsInt());
+            Encode(DateTime.Now.ToFileTimeUtc(), filePath, subPath, start, end, ArgList.Get(Arg.LIMIT).AsInt(), 0);
         }
       }
 
       MessageBox.Show("OK");
+    }
+
+    // TODO Test this, not alg!
+    public static void CrfLookupEncode(ushort startCrf, Func<ushort, string> encodeFunc)
+    {
+      // Megabytes!
+      double limit = ArgList.Get(Arg.LIMIT).AsInt() / 1024d;
+      double delta = ArgList.Get(Arg.AUTOLIMIT_DELTA).AsInt() / 1024d;
+      LinearCrfLookup bl = new LinearCrfLookup(limit - delta / 2, startCrf);
+
+      double size = 0;
+      while (!(limit - size < delta && size < limit))
+      {
+        ushort newCrf = bl.GetTarget();
+        if (newCrf == 0)
+          break;
+        string result = encodeFunc(newCrf);
+        size = ((new FileInfo(result).Length / 1024d) / 1024d); // MB
+        bl.AddPoint(newCrf, size);
+      }
     }
 
     static void BitrateLookupEncode(Func<int, string> encodeFunc)
@@ -274,7 +302,7 @@ namespace VpxEncode
       }
     }
 
-    static string Encode(long i, string file, string subs, TimeSpan start, TimeSpan end, int sizeLimit)
+    static string Encode(long i, string file, string subs, TimeSpan start, TimeSpan end, int sizeLimit, int crf)
     {
       // subs = *.ass
       if (subs != null && subs.StartsWith("*"))
@@ -376,24 +404,22 @@ namespace VpxEncode
         vf.Append("\" ");
 
       // Encode 2-pass video
-      FileInfo info = new FileInfo(oggPath);
-      double audioSize = info.Length / 1024d;
-      int bitrate = (int)((sizeLimit - audioSize) * 8 / timeLength.TotalSeconds);
-      string bitrateString = $"-b:v {bitrate}K";
-
       StringBuilder otherVideo = new StringBuilder();
       otherVideo.AppendForPrev(ArgList.Get(Arg.OTHER_VIDEO).AsString()).AppendIfPrev(" ");
 
-      ushort crf = ushort.MaxValue;
-      if (ArgList.Get(Arg.CRF_MODE))
-        try { crf = ushort.Parse(ArgList.Get(Arg.CRF_MODE).Value); if (crf > 63) crf = ushort.MaxValue; }
-        catch { }
+      if (crf < 4 || crf > 63)
+      {
+        crf = ushort.MaxValue;
+        if (ArgList.Get(Arg.CRF_MODE))
+          try { crf = ushort.Parse(ArgList.Get(Arg.CRF_MODE).Value); if (crf < 4 || crf > 63) crf = ushort.MaxValue; }
+          catch { }
+      }
 
       string threadSettings;
       if (ArgList.Get(Arg.SINGLE_THREAD))
         threadSettings = "-tile-columns 0 -frame-parallel 0 -threads 1 -speed 1";
       else
-        threadSettings = "-tile-columns 1 -frame-parallel 1 -threads 4 -speed 1";
+        threadSettings = $"-tile-columns {Environment.ProcessorCount} -frame-parallel 1 -threads {Environment.ProcessorCount} -speed 1";
 
       // Pass 1 cache
       string logPath = Path.Combine(filePath, $"temp_{code}-0.log");
@@ -415,6 +441,11 @@ namespace VpxEncode
       }
       else
       {
+        FileInfo info = new FileInfo(oggPath);
+        double audioSize = info.Length / 1024d;
+        int bitrate = (int)((sizeLimit - audioSize) * 8 / timeLength.TotalSeconds);
+        string bitrateString = $"-b:v {bitrate}K";
+
         if (!cached)
         {
           args = $"-hide_banner -y -ss {startString} -i \"{file}\" -c:v vp9 {bitrateString} {threadSettings} -an {vf} -t {timeLengthString} -sn {otherVideo} -lag-in-frames 25 -pass 1 -auto-alt-ref 1 -passlogfile temp_{code} \"{webmPath}\"";

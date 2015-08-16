@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 2013
-VisualStudioVersion = 12.0.31101.0
+# Visual Studio 14
+VisualStudioVersion = 14.0.23107.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VpxEncode", "VpxEncode\VpxEncode.csproj", "{533030BF-2C18-434D-9CEE-A0963904D606}"
 EndProject
@@ -10,6 +10,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		ILMerge\merge_all.bat = ILMerge\merge_all.bat
 		README.md = README.md
 	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnitTest", "UnitTest\UnitTest.csproj", "{A63DEECB-5CD8-401A-8AFC-AE5C627212D8}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,6 +23,10 @@ Global
 		{533030BF-2C18-434D-9CEE-A0963904D606}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{533030BF-2C18-434D-9CEE-A0963904D606}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{533030BF-2C18-434D-9CEE-A0963904D606}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A63DEECB-5CD8-401A-8AFC-AE5C627212D8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A63DEECB-5CD8-401A-8AFC-AE5C627212D8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A63DEECB-5CD8-401A-8AFC-AE5C627212D8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A63DEECB-5CD8-401A-8AFC-AE5C627212D8}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
