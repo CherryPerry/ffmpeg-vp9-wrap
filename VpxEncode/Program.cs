@@ -1,5 +1,4 @@
-﻿using Newtonsoft.Json.Linq;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
@@ -15,7 +14,7 @@ using YoutubeExtractor;
 
 namespace VpxEncode
 {
-  partial class Arg
+  public partial class Arg
   {
     public const string TIMINGS_INDEX = "ti", FIX_SUBS = "fs",
                         SUBS_INDEX = "si", SCALE = "scale",
@@ -34,7 +33,7 @@ namespace VpxEncode
                         SINGLE_THREAD = "sthread";
   }
 
-  static class ArgList
+  public static class ArgList
   {
     static SortedDictionary<string, Arg> ArgsDict = new SortedDictionary<string, Arg>()
     {
@@ -219,9 +218,9 @@ namespace VpxEncode
             TimeSpan start = ParseToTimespan(splitted[0]), end = ParseToTimespan(splitted[1]);
             if (ArgList.Get(Arg.AUTOLIMIT))
               if (crf != 0)
-                CrfLookupEncode(crf, (newCrf) => { return Encode(index, filePath, subPath, start, end, 0, newCrf); });
+                CrfLookupEncode(crf, (newCrf) => { return Encode(index, filePath, subPath, start, end, 0, newCrf); }, GetSizeMB);
               else
-                BitrateLookupEncode((newTarget) => { return Encode(index, filePath, subPath, start, end, newTarget, 0); });
+                BitrateLookupEncode((newTarget) => { return Encode(index, filePath, subPath, start, end, newTarget, 0); }, GetSizeKB);
             else
               Encode(index, filePath, subPath, start, end, ArgList.Get(Arg.LIMIT).AsInt(), 0);
           }
@@ -243,9 +242,9 @@ namespace VpxEncode
           TimeSpan start = ArgList.Get(Arg.START_TIME).AsTimeSpan(), end = ArgList.Get(Arg.END_TIME).AsTimeSpan();
           if (ArgList.Get(Arg.AUTOLIMIT))
             if (crf != 0)
-              CrfLookupEncode(crf, (newCrf) => Encode(DateTime.Now.ToFileTimeUtc(), filePath, subPath, start, end, 0, newCrf));
+              CrfLookupEncode(crf, (newCrf) => Encode(DateTime.Now.ToFileTimeUtc(), filePath, subPath, start, end, 0, newCrf), GetSizeMB);
             else
-              BitrateLookupEncode((newTarget) => Encode(DateTime.Now.ToFileTimeUtc(), filePath, subPath, start, end, newTarget, 0));
+              BitrateLookupEncode((newTarget) => Encode(DateTime.Now.ToFileTimeUtc(), filePath, subPath, start, end, newTarget, 0), GetSizeKB);
           else
             Encode(DateTime.Now.ToFileTimeUtc(), filePath, subPath, start, end, ArgList.Get(Arg.LIMIT).AsInt(), 0);
         }
@@ -254,8 +253,7 @@ namespace VpxEncode
       MessageBox.Show("OK");
     }
 
-    // TODO Test this, not alg!
-    public static void CrfLookupEncode(ushort startCrf, Func<ushort, string> encodeFunc)
+    public static ushort CrfLookupEncode(ushort startCrf, Func<ushort, string> encodeFunc, Func<string, double> getSize)
     {
       // Megabytes!
       double limit = ArgList.Get(Arg.LIMIT).AsInt() / 1024d;
@@ -263,18 +261,20 @@ namespace VpxEncode
       LinearCrfLookup bl = new LinearCrfLookup(limit - delta / 2, startCrf);
 
       double size = 0;
+      ushort newCrf = 0;
       while (!(limit - size < delta && size < limit))
       {
-        ushort newCrf = bl.GetTarget();
+        newCrf = bl.GetTarget();
         if (newCrf == 0)
           break;
         string result = encodeFunc(newCrf);
-        size = ((new FileInfo(result).Length / 1024d) / 1024d); // MB
+        size = getSize(result);
         bl.AddPoint(newCrf, size);
       }
+      return newCrf;
     }
 
-    static void BitrateLookupEncode(Func<int, string> encodeFunc)
+    public static void BitrateLookupEncode(Func<int, string> encodeFunc, Func<string, double> getSize)
     {
       int limit = ArgList.Get(Arg.LIMIT).AsInt();
       int delta = ArgList.Get(Arg.AUTOLIMIT_DELTA).AsInt();
@@ -297,7 +297,7 @@ namespace VpxEncode
         if (newTarget == -1)
           break;
         string result = encodeFunc(newTarget);
-        size = (int)(new FileInfo(result).Length / 1024d);
+        size = (int)getSize(result);
         bl.AddPoint(newTarget, size);
       }
     }
@@ -441,8 +441,7 @@ namespace VpxEncode
       }
       else
       {
-        FileInfo info = new FileInfo(oggPath);
-        double audioSize = info.Length / 1024d;
+        double audioSize = GetSizeKB(oggPath);
         int bitrate = (int)((sizeLimit - audioSize) * 8 / timeLength.TotalSeconds);
         string bitrateString = $"-b:v {bitrate}K";
 
@@ -619,6 +618,21 @@ namespace VpxEncode
         Console.Write(data.Data);
       else
         Console.WriteLine(data.Data);
+    }
+
+    static double GetSize(string path)
+    {
+      return new FileInfo(path).Length;
+    }
+
+    static double GetSizeKB(string path)
+    {
+      return GetSize(path) / 1024d;
+    }
+
+    static double GetSizeMB(string path)
+    {
+      return GetSizeKB(path) / 1024d;
     }
 
     static string GetFullPath(string file)

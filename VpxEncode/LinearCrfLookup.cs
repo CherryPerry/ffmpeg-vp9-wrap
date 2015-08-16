@@ -8,7 +8,7 @@ namespace VpxEncode
   /// </summary>
   public sealed class LinearCrfLookup
   {
-    private const int MIN_CRF = 15, MAX_CRF = 63;
+    public const ushort MIN_CRF = 15, MAX_CRF = 63;
 
     struct Point
     {
@@ -74,8 +74,8 @@ namespace VpxEncode
               return 0;
             if (p.Current == 0)
               break;
-          } while (newValue > 3);
-          if (newValue < 4)
+          } while (newValue >= MIN_CRF);
+          if (newValue < MIN_CRF)
             return 0;
         }
         else
@@ -117,22 +117,20 @@ namespace VpxEncode
 
     private ushort ReverseInput(ushort value)
     {
-      // 63 - value
-      if (value > 63)
-        value = 63;
-      if (value < 4)
-        value = 4;
-      return (ushort)(63 - value);
+      if (value > MAX_CRF)
+        value = MAX_CRF;
+      if (value < MIN_CRF)
+        value = MIN_CRF;
+      return (ushort)(MAX_CRF - value);
     }
 
     private ushort ReverseToOutput(ushort value)
     {
-      // 63 - value
-      if (value > 59)
-        value = 59;
+      if (value > MAX_CRF - MIN_CRF)
+        value = MAX_CRF - MIN_CRF;
       if (value < 0)
         value = 0;
-      return (ushort)(63 - value);
+      return (ushort)(MAX_CRF - value);
     }
   }
 }

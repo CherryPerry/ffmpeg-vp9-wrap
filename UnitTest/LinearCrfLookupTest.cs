@@ -1,68 +1,94 @@
-﻿using System;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
+﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
 using VpxEncode;
+using System.Collections.Generic;
 
 namespace UnitTest
 {
   [TestClass]
   public class LinearCrfLookupTest
   {
-    [TestMethod]
-    public void TestValid()
+    public static int[] ProduceCorrectData()
     {
-      // kb sizes
       int[] values = new int[63];
       for (int i = 0; i < 63; i++)
         values[i] = 1000 + (64 - i) * 300 + 100;
-
-      // test scope
-
-      double limit = 10;
-      double delta = 240 / 1024d;
-      ushort startCrf = 10;
-      LinearCrfLookup bl = new LinearCrfLookup(limit - delta / 2, startCrf); // in mb
-      ushort newCrf = 0;
-
-      double size = 0;
-      while (!(limit - size < delta && size < limit))
-      {
-        newCrf = bl.GetTarget();
-        if (newCrf == 0)
-          break;
-        size = values[newCrf] / 1024d; // in mb
-        bl.AddPoint(newCrf, size);
-      }
-
-      Assert.AreEqual(newCrf, 34);
+      return values;
     }
 
-    [TestMethod]
-    public void TestNotFound()
+    public static int[] ProduceNotFoundData()
     {
-      // kb sizes
       int[] values = new int[63];
       for (int i = 0; i < 63; i++)
         values[i] = 1000 + (64 - i) * 300 - 10;
+      return values;
+    }
 
-      // test scope
+    [TestMethod]
+    public void TestMinCRF()
+    {
+      TestValid(4);
+      TestNotFound(4);
+    }
 
-      double limit = 10;
-      double delta = 240 / 10240d;
-      ushort startCrf = 10;
-      LinearCrfLookup bl = new LinearCrfLookup(limit - delta / 2, startCrf); // in mb
-      ushort newCrf = 0;
+    [TestMethod]
+    public void TestMaxCRF()
+    {
+      TestValid(62);
+      TestNotFound(62);
+    }
 
-      double size = 0;
-      while (!(limit - size < delta && size < limit))
+    [TestMethod]
+    public void TestMultipleCRF()
+    {
+      ushort[] crf = new ushort[] { 10, 20, 30, 40, 50 };
+      foreach (ushort c in crf)
       {
-        newCrf = bl.GetTarget();
-        if (newCrf == 0)
-          break;
-        size = values[newCrf] / 1024d; // in mb
-        bl.AddPoint(newCrf, size);
+        TestValid(c);
+        TestNotFound(c);
       }
+    }
 
-      Assert.AreEqual(newCrf, 0);
+    private void TestValid(ushort startCrf)
+    {
+      // Kylobytes array
+      int[] values = ProduceCorrectData();
+
+      ushort resultCrf = Program.CrfLookupEncode(startCrf,
+        (crf) =>
+        {
+          return crf.ToString();
+        },
+        (str) =>
+        {
+          ushort crf = ushort.Parse(str);
+          return values[crf] / 1024d;
+        });
+
+      Assert.AreEqual(resultCrf, 34);
+    }
+
+    private void TestNotFound(ushort startCrf)
+    {
+      // Kylobytes array
+      int[] values = ProduceNotFoundData();
+
+      // Check if correct one was done
+      HashSet<ushort> set = new HashSet<ushort>();
+
+      ushort resultCrf = Program.CrfLookupEncode(startCrf,
+        (crf) =>
+        {
+          set.Add(crf);
+          return crf.ToString();
+        },
+        (str) =>
+        {
+          ushort crf = ushort.Parse(str);
+          return values[crf] / 1024d;
+        });
+
+      Assert.AreEqual(resultCrf, 0);
+      Assert.IsTrue(set.Contains(34));
     }
   }
 }
