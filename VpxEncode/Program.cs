@@ -422,7 +422,7 @@ namespace VpxEncode
         threadSettings = $"-tile-columns {Environment.ProcessorCount} -frame-parallel 1 -threads {Environment.ProcessorCount} -speed 1";
 
       // Pass 1 cache
-      string logPath = Path.Combine(filePath, $"temp_{code}-0.log");
+      string logPath = Path.Combine(Environment.CurrentDirectory, $"temp_{code}-0.log");
       Cache.FPCKey key = new Cache.FPCKey(file, vf.ToString(), startString, timeLengthString);
       bool cached = Cache.Instance.CreateIfPossible(key, logPath);
 
