@@ -30,7 +30,8 @@ namespace VpxEncode
                         AUTOLIMIT_DELTA = "alimitD", AUTOLIMIT_HISTORY = "alimitS",
                         YOUTUBE = "youtube", CROP = "crop",
                         INSTALL = "install", CRF_MODE = "crf",
-                        SINGLE_THREAD = "sthread", TIMINGS_DELTA = "td";
+                        SINGLE_THREAD = "sthread", TIMINGS_DELTA = "td",
+                        VORBIS = "vorb";
   }
 
   public static class ArgList
@@ -67,6 +68,7 @@ namespace VpxEncode
       [Arg.UPSCALE] = new Arg(Arg.UPSCALE, null, "разрешить апскейл видео", false),
       [Arg.SINGLE_THREAD] = new Arg(Arg.SINGLE_THREAD, null, "кодирование в 1 поток", false),
       [Arg.TIMINGS_DELTA] = new Arg(Arg.TIMINGS_DELTA, "0", "{00:00.000|00:00:00.000|0} смещение времени при кодировании из файла таймингов"),
+      [Arg.VORBIS] = new Arg(Arg.VORBIS, null, "{0-10 10 - максимальное качество} использовать libvorbis с выбранным качеством")
     };
 
     public static void Parse(string[] args)
@@ -350,9 +352,11 @@ namespace VpxEncode
       int opusRate = ArgList.Get(Arg.OPUS_RATE).AsInt();
       string audioFile = ArgList.Get(Arg.AUDIO_FILE) ? GetFullPath(ArgList.Get(Arg.AUDIO_FILE).AsString()) : file;
       string otherAudio = ArgList.Get(Arg.OTHER_AUDIO).AsString();
+      int vorbis = ArgList.Get(Arg.VORBIS) ? ArgList.Get(Arg.OTHER_AUDIO).AsInt() : -1;
+      string codecParams = vorbis == -1 ? $"-c:a opus -b:a {opusRate}K -vbr on" : $"-c:a libvorbis -q:a {vorbis}";
 
       // Encode audio
-      string args = $"-hide_banner -y -ss {startString} -i \"{audioFile}\" {mapAudio} -ac 2 -c:a opus -b:a {opusRate}K -vbr on -vn -sn -t {timeLengthString} {otherAudio} \"{oggPath}\"";
+      string args = $"-hide_banner -y -ss {startString} -i \"{audioFile}\" {mapAudio} -ac 2 {codecParams} -vn -sn -t {timeLengthString} {otherAudio} \"{oggPath}\"";
 
       // Audio cache
       Cache.ACKey aKey = new Cache.ACKey(args);
