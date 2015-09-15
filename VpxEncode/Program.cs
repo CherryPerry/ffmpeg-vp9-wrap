@@ -30,7 +30,7 @@ namespace VpxEncode
                         AUTOLIMIT_DELTA = "alimitD", AUTOLIMIT_HISTORY = "alimitS",
                         YOUTUBE = "youtube", CROP = "crop",
                         INSTALL = "install", CRF_MODE = "crf",
-                        SINGLE_THREAD = "sthread";
+                        SINGLE_THREAD = "sthread", TIMINGS_DELTA = "td";
   }
 
   public static class ArgList
@@ -65,7 +65,8 @@ namespace VpxEncode
       [Arg.INSTALL] = new Arg(Arg.INSTALL, null, "установка ffmpeg в систему (только при запуске от имени Администратора)", false),
       [Arg.CRF_MODE] = new Arg(Arg.CRF_MODE, null, "{0-63} режим качества (crf) для коротких webm (alimit и limit не действуют)"),
       [Arg.UPSCALE] = new Arg(Arg.UPSCALE, null, "разрешить апскейл видео", false),
-      [Arg.SINGLE_THREAD] = new Arg(Arg.SINGLE_THREAD, null, "кодирование в 1 поток", false)
+      [Arg.SINGLE_THREAD] = new Arg(Arg.SINGLE_THREAD, null, "кодирование в 1 поток", false),
+      [Arg.TIMINGS_DELTA] = new Arg(Arg.TIMINGS_DELTA, "0", "{00:00.000|00:00:00.000|0} смещение времени при кодировании из файла таймингов"),
     };
 
     public static void Parse(string[] args)
@@ -216,6 +217,7 @@ namespace VpxEncode
           {
             ushort crf = ArgList.Get(Arg.CRF_MODE) ? ushort.Parse(ArgList.Get(Arg.CRF_MODE).Value) : (ushort)0;
             TimeSpan start = ParseToTimespan(splitted[0]), end = ParseToTimespan(splitted[1]);
+            start += ParseToTimespan(ArgList.Get(Arg.TIMINGS_DELTA).AsString());
             if (ArgList.Get(Arg.AUTOLIMIT))
               if (crf != 0)
                 CrfLookupEncode(crf, (newCrf) => { return Encode(index, filePath, subPath, start, end, 0, newCrf); }, GetSizeMB);
@@ -240,6 +242,7 @@ namespace VpxEncode
         {
           ushort crf = ArgList.Get(Arg.CRF_MODE) ? ushort.Parse(ArgList.Get(Arg.CRF_MODE).Value) : (ushort)0;
           TimeSpan start = ArgList.Get(Arg.START_TIME).AsTimeSpan(), end = ArgList.Get(Arg.END_TIME).AsTimeSpan();
+          start += ParseToTimespan(ArgList.Get(Arg.TIMINGS_DELTA).AsString());
           if (ArgList.Get(Arg.AUTOLIMIT))
             if (crf != 0)
               CrfLookupEncode(crf, (newCrf) => Encode(DateTime.Now.ToFileTimeUtc(), filePath, subPath, start, end, 0, newCrf), GetSizeMB);
@@ -431,12 +434,12 @@ namespace VpxEncode
       {
         if (!cached)
         {
-          args = $"-hide_banner -y -ss {startString} -i \"{file}\" -c:v vp9 {vf} -crf {crf} -b:v 0 {threadSettings} -an -t {timeLengthString} -sn -lag-in-frames 25 -pass 1 -auto-alt-ref 1 -passlogfile temp_{code} \"{webmPath}\"";
+          args = $"-hide_banner -y -ss {startString} -i \"{file}\" -c:v vp9 -pix_fmt +yuv420p {vf} -crf {crf} -b:v 0 {threadSettings} -an -t {timeLengthString} -sn -lag-in-frames 25 -pass 1 -auto-alt-ref 1 -passlogfile temp_{code} \"{webmPath}\"";
           ExecuteFFMPEG(args, pu);
           Cache.Instance.Save(key, logPath);
         }
 
-        args = $"-hide_banner -y -ss {startString} -i \"{file}\" -c:v vp9 {vf} -crf {crf} -b:v 0 {threadSettings} -an -t {timeLengthString} -sn -lag-in-frames 25 -pass 2 -auto-alt-ref 1 -passlogfile temp_{code} \"{webmPath}\"";
+        args = $"-hide_banner -y -ss {startString} -i \"{file}\" -c:v vp9 -pix_fmt +yuv420p {vf} -crf {crf} -b:v 0 {threadSettings} -an -t {timeLengthString} -sn -lag-in-frames 25 -pass 2 -auto-alt-ref 1 -passlogfile temp_{code} \"{webmPath}\"";
         ExecuteFFMPEG(args, pu);
       }
       else
@@ -447,12 +450,12 @@ namespace VpxEncode
 
         if (!cached)
         {
-          args = $"-hide_banner -y -ss {startString} -i \"{file}\" -c:v vp9 {bitrateString} {threadSettings} -an {vf} -t {timeLengthString} -sn {otherVideo} -lag-in-frames 25 -pass 1 -auto-alt-ref 1 -passlogfile temp_{code} \"{webmPath}\"";
+          args = $"-hide_banner -y -ss {startString} -i \"{file}\" -c:v vp9 -pix_fmt +yuv420p {bitrateString} {threadSettings} -an {vf} -t {timeLengthString} -sn {otherVideo} -lag-in-frames 25 -pass 1 -auto-alt-ref 1 -passlogfile temp_{code} \"{webmPath}\"";
           ExecuteFFMPEG(args, pu);
           Cache.Instance.Save(key, logPath);
         }
 
-        args = $"-hide_banner -y -ss {startString} -i \"{file}\" -c:v vp9 {bitrateString} {threadSettings} -an {vf} -t {timeLengthString} -sn {otherVideo} -lag-in-frames 25 -pass 2 -auto-alt-ref 1 -passlogfile temp_{code} \"{webmPath}\"";
+        args = $"-hide_banner -y -ss {startString} -i \"{file}\" -c:v vp9 -pix_fmt +yuv420p {bitrateString} {threadSettings} -an {vf} -t {timeLengthString} -sn {otherVideo} -lag-in-frames 25 -pass 2 -auto-alt-ref 1 -passlogfile temp_{code} \"{webmPath}\"";
         ExecuteFFMPEG(args, pu);
       }
 
@@ -563,7 +566,7 @@ namespace VpxEncode
       string scale = result.Scale;
       scale = scale == null ? string.Empty : (",scale=" + scale);
       scale = $"-vf \"trim=end_frame=2{scale}\"";
-      string args = $"-hide_banner -ss {previewTiming} -i \"{previewSource}\" -c:v vp9 -b:v 0 -crf 8 -speed 1 -an -sn {scale} \"{previewWebm}\"";
+      string args = $"-hide_banner -ss {previewTiming} -i \"{previewSource}\" -c:v vp9 -pix_fmt +yuv420p -b:v 0 -crf 8 -speed 1 -an -sn {scale} \"{previewWebm}\"";
       ExecuteFFMPEG(args, pu);
 
       // Bad muxing fix
