@@ -352,7 +352,7 @@ namespace VpxEncode
       int opusRate = ArgList.Get(Arg.OPUS_RATE).AsInt();
       string audioFile = ArgList.Get(Arg.AUDIO_FILE) ? GetFullPath(ArgList.Get(Arg.AUDIO_FILE).AsString()) : file;
       string otherAudio = ArgList.Get(Arg.OTHER_AUDIO).AsString();
-      int vorbis = ArgList.Get(Arg.VORBIS) ? ArgList.Get(Arg.OTHER_AUDIO).AsInt() : -1;
+      int vorbis = ArgList.Get(Arg.VORBIS) ? ArgList.Get(Arg.VORBIS).AsInt() : -1;
       string codecParams = vorbis == -1 ? $"-c:a opus -b:a {opusRate}K -vbr on" : $"-c:a libvorbis -q:a {vorbis}";
 
       // Encode audio
