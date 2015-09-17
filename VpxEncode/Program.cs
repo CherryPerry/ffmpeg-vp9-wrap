@@ -25,13 +25,13 @@ namespace VpxEncode
                         TIMINGS = "t", START_TIME = "ss",
                         END_TIME = "to", MAP_AUDIO = "ma",
                         GENERATE_TIMING = "gent", GENERATE_T_FILE = "genf",
-                        OPUS_RATE = "opusRate", NAME_PREFIX = "name",
+                        OPUS_RATE = "or", NAME_PREFIX = "name",
                         AUDIO_FILE = "af", AUTOLIMIT = "alimit",
                         AUTOLIMIT_DELTA = "alimitD", AUTOLIMIT_HISTORY = "alimitS",
                         YOUTUBE = "youtube", CROP = "crop",
                         INSTALL = "install", CRF_MODE = "crf",
                         SINGLE_THREAD = "sthread", TIMINGS_DELTA = "td",
-                        VORBIS = "vorb";
+                        VORBIS = "vorb", CROP_V = "cropv";
   }
 
   public static class ArgList
@@ -68,7 +68,8 @@ namespace VpxEncode
       [Arg.UPSCALE] = new Arg(Arg.UPSCALE, null, "разрешить апскейл видео", false),
       [Arg.SINGLE_THREAD] = new Arg(Arg.SINGLE_THREAD, null, "кодирование в 1 поток", false),
       [Arg.TIMINGS_DELTA] = new Arg(Arg.TIMINGS_DELTA, "0", "{00:00.000|00:00:00.000|0} смещение времени при кодировании из файла таймингов"),
-      [Arg.VORBIS] = new Arg(Arg.VORBIS, null, "{0-10 10 - максимальное качество} использовать libvorbis с выбранным качеством")
+      [Arg.VORBIS] = new Arg(Arg.VORBIS, null, "{0-10 10 - максимальное качество} использовать libvorbis с выбранным качеством"),
+      [Arg.CROP_V] = new Arg(Arg.CROP_V, null, "{int:int:int:int} обрезка out_w:out_h:x:y")
     };
 
     public static void Parse(string[] args)
@@ -396,6 +397,8 @@ namespace VpxEncode
           vf.AppendIfPrev(",").AppendForPrev(crop);
         pu.Write("CROP: " + crop);
       }
+      if (ArgList.Get(Arg.CROP_V))
+        vf.AppendIfPrev(",").AppendForPrev("crop=" + ArgList.Get(Arg.CROP_V).AsString());
       if (scale != "no")
         vf.AppendIfPrev(",").AppendForPrev($"scale={scale}:sws_flags=lanczos");
       if (subs != null)
@@ -481,7 +484,7 @@ namespace VpxEncode
 
     static string GetCrop(string file, string start, string t)
     {
-      string args = $"-hide_banner -ss {start} -i \"{file}\" -t {t} -vf cropdetect=24:2:0 -f null NUL";
+      string args = $"-hide_banner -ss {start} -i \"{file}\" -t {t} -vf cropdetect=64:2:0 -f null NUL";
       string cached = Cache.Instance.Get<string>(Cache.CACHE_STRINGS, args);
       if (cached == null)
       {
