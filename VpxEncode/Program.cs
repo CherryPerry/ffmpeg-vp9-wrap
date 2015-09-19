@@ -27,7 +27,7 @@ namespace VpxEncode
                         GENERATE_TIMING = "gent", GENERATE_T_FILE = "genf",
                         OPUS_RATE = "or", NAME_PREFIX = "name",
                         AUDIO_FILE = "af", AUTOLIMIT = "alimit",
-                        AUTOLIMIT_DELTA = "alimitD",
+                        AUTOLIMIT_DELTA = "alimitD", SUBS_FIRST = "sfirst",
                         YOUTUBE = "youtube", CROP = "crop",
                         INSTALL = "install", CRF_MODE = "crf",
                         SINGLE_THREAD = "sthread", TIMINGS_DELTA = "td",
@@ -68,7 +68,8 @@ namespace VpxEncode
       [Arg.SINGLE_THREAD] = new Arg(Arg.SINGLE_THREAD, null, "кодирование в 1 поток", false),
       [Arg.TIMINGS_DELTA] = new Arg(Arg.TIMINGS_DELTA, "0", "{00:00.000|00:00:00.000|0} смещение времени при кодировании из файла таймингов"),
       [Arg.VORBIS] = new Arg(Arg.VORBIS, null, "{0-10 10 - максимальное качество} использовать libvorbis с выбранным качеством"),
-      [Arg.CROP_V] = new Arg(Arg.CROP_V, null, "{int:int:int:int} обрезка out_w:out_h:x:y")
+      [Arg.CROP_V] = new Arg(Arg.CROP_V, null, "{int:int:int:int} обрезка out_w:out_h:x:y"),
+      [Arg.SUBS_FIRST] = new Arg(Arg.SUBS_FIRST, null, "накладывать сабы до скейла", false)
     };
 
     public static void Parse(string[] args)
@@ -378,6 +379,21 @@ namespace VpxEncode
       // VideoFilter
       const string vfDefault = "-vf \"";
       StringBuilder vf = new StringBuilder(vfDefault);
+      Action addSubs = () =>
+      {
+        if (subs != null)
+        {
+          string format = subs.EndsWith("ass") || subs.EndsWith("ssa") ? "ass='{0}'{1}" : "subtitles='{0}'{1}";
+          format = string.Format(format, subs.Replace(@"\", @"\\").Replace(":", @"\:"), ArgList.Get(Arg.SUBS_INDEX).Command);
+          format = string.Format(new CultureInfo("en"), "setpts=PTS+{0:0.######}/TB,{1},setpts=PTS-STARTPTS", start.TotalSeconds, format);
+          vf.AppendIfPrev(",").AppendForPrev(format);
+        }
+      };
+      Action addScale = () =>
+      {
+        if (scale != "no")
+          vf.AppendIfPrev(",").AppendForPrev($"scale={scale}:sws_flags=lanczos");
+      };
 
       if (ArgList.Get(Arg.CROP))
       {
@@ -388,15 +404,17 @@ namespace VpxEncode
       }
       if (ArgList.Get(Arg.CROP_V))
         vf.AppendIfPrev(",").AppendForPrev("crop=" + ArgList.Get(Arg.CROP_V).AsString());
-      if (scale != "no")
-        vf.AppendIfPrev(",").AppendForPrev($"scale={scale}:sws_flags=lanczos");
-      if (subs != null)
+      if (ArgList.Get(Arg.SUBS_FIRST))
       {
-        string format = subs.EndsWith("ass") || subs.EndsWith("ssa") ? "ass='{0}'{1}" : "subtitles='{0}'{1}";
-        format = string.Format(format, subs.Replace(@"\", @"\\").Replace(":", @"\:"), ArgList.Get(Arg.SUBS_INDEX).Command);
-        format = string.Format(new CultureInfo("en"), "setpts=PTS+{0:0.######}/TB,{1},setpts=PTS-STARTPTS", start.TotalSeconds, format);
-        vf.AppendIfPrev(",").AppendForPrev(format);
+        addSubs();
+        addScale();
       }
+      else
+      {
+        addScale();
+        addSubs();
+      }
+
       if (vf.Length == vfDefault.Length)
         vf.Clear();
       else
