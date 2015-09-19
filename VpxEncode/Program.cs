@@ -441,7 +441,7 @@ namespace VpxEncode
       {
         if (!cached)
         {
-          args = $"-hide_banner -y -ss {startString} -i \"{file}\" -c:v vp9 -pix_fmt +yuv420p {vf} -crf {crf} -b:v 0 {threadSettings} -an -t {timeLengthString} -sn -lag-in-frames 25 -pass 1 -auto-alt-ref 1 -passlogfile temp_{code} \"{webmPath}\"";
+          args = $"-hide_banner -y -ss {startString} -i \"{file}\" -c:v vp9 -pix_fmt +yuv420p {vf} -crf {crf} -b:v 0 {threadSettings} -an -t {timeLengthString} -sn -lag-in-frames 25 -pass 1 -auto-alt-ref 1 -passlogfile temp_{code} -f null -y NUL";
           ExecuteFFMPEG(args, pu);
           Cache.Instance.Save(key, logPath);
         }
@@ -457,7 +457,7 @@ namespace VpxEncode
 
         if (!cached)
         {
-          args = $"-hide_banner -y -ss {startString} -i \"{file}\" -c:v vp9 -pix_fmt +yuv420p {bitrateString} {threadSettings} -an {vf} -t {timeLengthString} -sn {otherVideo} -lag-in-frames 25 -pass 1 -auto-alt-ref 1 -passlogfile temp_{code} \"{webmPath}\"";
+          args = $"-hide_banner -y -ss {startString} -i \"{file}\" -c:v vp9 -pix_fmt +yuv420p {bitrateString} {threadSettings} -an {vf} -t {timeLengthString} -sn {otherVideo} -lag-in-frames 25 -pass 1 -auto-alt-ref 1 -passlogfile temp_{code} -f null -y NUL";
           ExecuteFFMPEG(args, pu);
           Cache.Instance.Save(key, logPath);
         }
