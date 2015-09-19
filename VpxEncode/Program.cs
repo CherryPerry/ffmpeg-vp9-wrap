@@ -27,7 +27,7 @@ namespace VpxEncode
                         GENERATE_TIMING = "gent", GENERATE_T_FILE = "genf",
                         OPUS_RATE = "or", NAME_PREFIX = "name",
                         AUDIO_FILE = "af", AUTOLIMIT = "alimit",
-                        AUTOLIMIT_DELTA = "alimitD", AUTOLIMIT_HISTORY = "alimitS",
+                        AUTOLIMIT_DELTA = "alimitD",
                         YOUTUBE = "youtube", CROP = "crop",
                         INSTALL = "install", CRF_MODE = "crf",
                         SINGLE_THREAD = "sthread", TIMINGS_DELTA = "td",
@@ -58,7 +58,6 @@ namespace VpxEncode
       [Arg.GENERATE_T_FILE] = new Arg(Arg.GENERATE_T_FILE, null, "имя файла при " + Arg.GENERATE_TIMING),
       [Arg.AUTOLIMIT] = new Arg(Arg.AUTOLIMIT, null, "подогнать под лимит", false),
       [Arg.AUTOLIMIT_DELTA] = new Arg(Arg.AUTOLIMIT_DELTA, "240", "{int} погрешность автоподгона в KB (default: 240)"),
-      [Arg.AUTOLIMIT_HISTORY] = new Arg(Arg.AUTOLIMIT_HISTORY, null, "{int:int} добавить историю попыток KB '10240:6567,13000:7800'"),
       [Arg.PREVIEW] = new Arg(Arg.PREVIEW, null, "{00:00.000|00:00:00.000|0} кадр для превью"),
       [Arg.PREVIEW_SOURCE] = new Arg(Arg.PREVIEW_SOURCE, null, "{string} файл для превью, если нет, то берется из -file"),
       [Arg.YOUTUBE] = new Arg(Arg.YOUTUBE, null, "{string} ссылка на видео с ютуба"),
@@ -285,16 +284,6 @@ namespace VpxEncode
       int limit = ArgList.Get(Arg.LIMIT).AsInt();
       int delta = ArgList.Get(Arg.AUTOLIMIT_DELTA).AsInt();
       LinearBitrateLookup bl = new LinearBitrateLookup(limit - delta / 2);
-
-      string history = ArgList.Get(Arg.AUTOLIMIT_HISTORY).AsString();
-      if (!string.IsNullOrWhiteSpace(history))
-        foreach (string split in history.Split(','))
-        {
-          string[] values = split.Split(':');
-          if (values.Length == 2)
-            try { bl.AddPoint(int.Parse(values[0]), int.Parse(values[1])); }
-            finally { }
-        }
 
       int size = 0;
       while (!(limit - size < delta && size < limit))
